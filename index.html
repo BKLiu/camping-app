@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>露營小助手 - 多人同步穩定版</title>
+    <title>露營小助手 - 穩定部署版 v1.0.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -19,6 +19,8 @@
         .expense-card { transition: transform 0.2s; }
         .expense-card:hover { transform: translateY(-2px); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        /* 隱藏預設數字輸入框箭頭 */
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="text-stone-800">
@@ -30,7 +32,7 @@
                 <i data-lucide="layout-dashboard"></i> 露營小助手
             </h1>
             <div class="flex items-center gap-2">
-                <button onclick="toggleSyncModal()" id="sync-status-btn" class="text-xs bg-emerald-800 hover:bg-emerald-900 px-3 py-1 rounded-full flex items-center gap-1 transition">
+                <button onclick="window.toggleSyncModal()" id="sync-status-btn" class="text-xs bg-emerald-800 hover:bg-emerald-900 px-3 py-1 rounded-full flex items-center gap-1 transition border border-emerald-600/30">
                     <span id="sync-dot" class="w-2 h-2 bg-stone-400 rounded-full"></span>
                     <span id="sync-text">連線準備中...</span>
                 </button>
@@ -41,272 +43,197 @@
     <!-- Navigation Tabs -->
     <nav class="bg-white border-b border-stone-200 sticky top-[60px] z-40">
         <div class="max-w-4xl mx-auto flex overflow-x-auto no-scrollbar">
-            <button onclick="switchTab('dashboard-tab')" id="btn-dashboard-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium tab-active transition-all">總覽</button>
-            <button onclick="switchTab('map-tab')" id="btn-map-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">行程</button>
-            <button onclick="switchTab('expense-tab')" id="btn-expense-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">分帳</button>
-            <button onclick="switchTab('members-tab')" id="btn-members-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">成員</button>
+            <button onclick="window.switchTab('dashboard-tab')" id="btn-dashboard-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium tab-active transition-all">總覽</button>
+            <button onclick="window.switchTab('map-tab')" id="btn-map-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">行程</button>
+            <button onclick="window.switchTab('expense-tab')" id="btn-expense-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">分帳</button>
+            <button onclick="window.switchTab('members-tab')" id="btn-members-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium text-stone-500 transition-all">成員</button>
         </div>
     </nav>
 
     <main class="max-w-4xl mx-auto p-4 pb-24">
-        <!-- Tab: Dashboard -->
+        <!-- Dashboard Tab -->
         <section id="dashboard-tab" class="space-y-4">
             <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <p class="text-emerald-100 text-sm">當前露營行程</p>
-                        <h2 id="dash-camp-name" class="text-2xl font-bold">尚未設定目的地</h2>
+                        <p class="text-emerald-100 text-sm">當前行程</p>
+                        <h2 id="dash-camp-name" class="text-2xl font-bold">尚未設定</h2>
                     </div>
-                    <i data-lucide="tent" class="w-10 h-10 opacity-50"></i>
+                    <i data-lucide="tent" class="w-10 h-10 opacity-30"></i>
                 </div>
                 <div id="dash-location-btn-container" class="hidden">
-                    <button onclick="openGoogleMaps()" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                        <i data-lucide="map"></i> 開啟地圖
+                    <button onclick="window.openGoogleMaps()" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        <i data-lucide="map" class="w-4 h-4"></i> 開啟地圖導航
                     </button>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-xs text-stone-500 uppercase">總花費</p>
+                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">分帳總額</p>
                     <p id="dash-total-expense" class="text-xl font-bold text-emerald-700">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-xs text-stone-500 uppercase">人均費用</p>
+                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">每人分擔</p>
                     <p id="dash-avg-expense" class="text-xl font-bold text-blue-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-xs text-stone-500 uppercase">營位費總計</p>
+                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">營位/夜衝</p>
                     <p id="dash-camp-fee-total" class="text-xl font-bold text-amber-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-xs text-stone-500 uppercase">參與成員</p>
+                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">成員人數</p>
                     <p id="dash-member-count" class="text-xl font-bold text-stone-700">0 人</p>
                 </div>
             </div>
 
-            <div id="dash-trip-details-card" class="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hidden">
-                <h3 class="font-bold text-sm text-stone-600 mb-3 flex items-center gap-2"><i data-lucide="clipboard-list" class="w-4 h-4"></i> 營地細節</h3>
-                <div id="dash-camp-details-content" class="text-sm text-stone-500 space-y-2"></div>
+            <div id="dash-trip-details-card" class="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hidden text-sm text-stone-500">
+                <h3 class="font-bold text-stone-600 mb-3 flex items-center gap-2"><i data-lucide="clipboard-list" class="w-4 h-4"></i> 行程詳情</h3>
+                <div id="dash-camp-details-content" class="space-y-2"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
-                <div class="bg-stone-50 px-4 py-3 border-b border-stone-100 flex justify-between items-center">
-                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="coins" class="w-4 h-4 text-amber-500"></i> 結算快捷報</h3>
-                </div>
+                <div class="bg-stone-50 px-4 py-3 border-b border-stone-100"><h3 class="font-bold text-sm flex items-center gap-2"><i data-lucide="calculator" class="w-4 h-4 text-emerald-600"></i> 結算快捷報</h3></div>
                 <div id="dash-settlement-list" class="p-4 space-y-3">
                     <p class="text-center text-stone-400 py-4 text-sm italic">尚無分帳建議</p>
                 </div>
             </div>
-
+            
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-stone-100">
-                <h3 class="font-bold mb-3 text-sm text-stone-600">誰付最多？</h3>
-                <div id="dash-payer-ranking" class="space-y-3">
-                    <p class="text-center text-stone-400 py-2 text-xs">暫無數據</p>
-                </div>
+                <h3 class="font-bold mb-3 text-sm text-stone-600 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-600"></i> 支出貢獻</h3>
+                <div id="dash-payer-ranking" class="space-y-3"></div>
             </div>
         </section>
 
-        <!-- Tab: Map -->
+        <!-- Map Tab -->
         <section id="map-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-                <h3 class="font-bold mb-4 flex items-center gap-2 text-emerald-700"><i data-lucide="map-pin"></i> 營地行程資料</h3>
-                <div class="space-y-5">
+                <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="map-pin"></i> 營地資訊設定</h3>
+                <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-bold text-stone-600 mb-2">營地名稱</label>
-                        <input type="text" id="manual-location" placeholder="例如：武陵農場..." class="w-full border border-stone-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500">
+                        <label class="block text-xs font-bold text-stone-400 mb-1">營地名稱</label>
+                        <input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="例如：武陵農場..." class="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-bold text-stone-600 mb-2">營位費</label>
-                            <input type="number" id="camp-fee-input" placeholder="0" class="w-full border border-stone-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500">
+                            <label class="block text-xs font-bold text-stone-400 mb-1">營位費總計</label>
+                            <input type="number" id="camp-fee-input" placeholder="0" class="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-stone-600 mb-2">夜衝費</label>
-                            <input type="number" id="night-fee-input" placeholder="0" class="w-full border border-stone-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500">
+                            <label class="block text-xs font-bold text-stone-400 mb-1">夜衝費總計</label>
+                            <input type="number" id="night-fee-input" placeholder="0" class="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-stone-600 mb-2">營地備註</label>
-                        <textarea id="camp-details-input" rows="3" placeholder="例如：幾點進場..." class="w-full border border-stone-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                        <label class="block text-xs font-bold text-stone-400 mb-1">行程備註</label>
+                        <textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場、營位 A1-A3..." class="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                     </div>
-                    <button onclick="saveTripData()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition">儲存行程資料</button>
-                    <div id="location-active-ui" class="bg-emerald-50 p-6 rounded-xl border border-emerald-100 hidden text-center">
-                        <button onclick="openGoogleMaps()" class="inline-flex items-center gap-2 bg-white border-2 border-emerald-600 text-emerald-700 font-bold px-8 py-3 rounded-full hover:bg-emerald-600 hover:text-white transition">在 Map 中開啟</button>
+                    <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-md">儲存行程資料</button>
+                    <div id="location-active-ui" class="hidden text-center mt-2">
+                        <button onclick="window.openGoogleMaps()" class="text-emerald-700 font-bold underline flex items-center justify-center gap-1 mx-auto"><i data-lucide="external-link" class="w-4 h-4"></i> 在 Google Map 中開啟搜尋</button>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- Tab: Expense -->
+        <!-- Expense Tab -->
         <section id="expense-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-                <h3 class="font-bold mb-4 flex items-center gap-2 text-emerald-700"><i data-lucide="plus-circle"></i> 新增支出</h3>
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" id="exp-title" placeholder="項目名稱" class="border border-stone-300 rounded-lg px-4 py-2 outline-none">
-                        <input type="number" id="exp-amount" placeholder="金額" class="border border-stone-300 rounded-lg px-4 py-2 outline-none">
+                <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="plus-circle"></i> 新增支出項目</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="exp-title" placeholder="項目 (如：全聯買菜)" class="border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="number" id="exp-amount" placeholder="金額" class="border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                    <div>
+                        <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">付款人</label>
+                        <select id="exp-payer" class="w-full border p-3 rounded-lg outline-none"></select>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <select id="exp-payer" class="w-full border border-stone-300 rounded-lg px-4 py-2 outline-none"></select>
-                        <button onclick="addExpense()" class="bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700 transition">加入支出</button>
+                    <div class="flex items-end">
+                        <button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 transition shadow-md">新增紀錄</button>
                     </div>
                 </div>
             </div>
             <div id="expense-list" class="space-y-3"></div>
         </section>
 
-        <!-- Tab: Members -->
+        <!-- Members Tab -->
         <section id="members-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-                <h3 class="font-bold mb-4 flex items-center gap-2 text-emerald-700"><i data-lucide="user-plus"></i> 管理成員</h3>
+                <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="user-plus"></i> 管理成員</h3>
                 <div class="flex gap-2">
-                    <input type="text" id="member-name" onkeyup="if(event.key==='Enter') addMember()" placeholder="輸入名字..." class="flex-1 border border-stone-300 rounded-lg px-4 py-2 outline-none">
-                    <button onclick="addMember()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold">新增</button>
+                    <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入露友名字..." class="flex-1 border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500">
+                    <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-md hover:bg-emerald-700 transition">新增</button>
                 </div>
             </div>
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-stone-50 border-b border-stone-100 font-bold">
-                        <tr><th class="px-6 py-3">名稱</th><th class="px-6 py-3 text-right">已支付</th><th class="px-6 py-3 text-right">操作</th></tr>
-                    </thead>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-stone-100">
+                <table class="w-full text-left">
+                    <thead class="bg-stone-50 border-b font-bold text-xs text-stone-500 uppercase"><tr><th class="p-4">成員</th><th class="p-4 text-right">已墊付總額</th><th class="p-4 text-right">操作</th></tr></thead>
                     <tbody id="members-list-body"></tbody>
                 </table>
+            </div>
+            
+            <div class="pt-6 border-t border-stone-200">
+                <button onclick="window.resetAllLocalData()" class="text-xs text-rose-400 hover:text-rose-600 flex items-center gap-1 mx-auto transition">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i> 清空所有本地快取資料 (重新開始)
+                </button>
             </div>
         </section>
     </main>
 
     <!-- Sync Modal -->
-    <div id="sync-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4">
+    <div id="sync-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all">
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-6 shadow-2xl">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="refresh-cw" class="text-emerald-600"></i> 多人連線同步</h2>
-                <button onclick="toggleSyncModal()" class="text-stone-400 hover:text-stone-600"><i data-lucide="x"></i></button>
-            </div>
+            <div class="flex justify-between items-center"><h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="refresh-cw" class="text-emerald-600"></i> 多人連線同步</h2><button onclick="window.toggleSyncModal()" class="p-1 hover:bg-stone-100 rounded-full transition"><i data-lucide="x"></i></button></div>
             <div id="sync-off-ui" class="space-y-4">
-                <button onclick="startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition">開啟新行程同步</button>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="join-trip-id" placeholder="輸入行程 ID" class="flex-1 border border-stone-300 rounded-xl px-4 py-2 outline-none">
-                    <button onclick="joinExistingTrip()" class="bg-stone-800 text-white px-4 py-2 rounded-xl font-bold">加入</button>
-                </div>
+                <p class="text-sm text-stone-500">同步功能可以讓你的夥伴即時看到並編輯行程。建立一個新 ID 或輸入朋友提供的 ID 即可加入。</p>
+                <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition">建立新連線行程 (Host)</button>
+                <div class="relative flex items-center"><div class="flex-grow border-t border-stone-200"></div><span class="flex-shrink mx-4 text-stone-400 text-xs uppercase font-bold">或者</span><div class="flex-grow border-t border-stone-200"></div></div>
+                <div class="flex gap-2"><input type="text" id="join-trip-id" placeholder="輸入行程 ID (如: KJ8A2W)" class="flex-1 border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 uppercase"><button onclick="window.joinExistingTrip()" class="bg-stone-800 text-white px-6 rounded-lg font-bold hover:bg-stone-900">加入</button></div>
             </div>
-            <div id="sync-on-ui" class="hidden space-y-4">
-                <div class="bg-emerald-50 p-4 rounded-xl text-center font-bold">
-                    <p class="text-xs text-emerald-600 mb-1">當前行程 ID</p>
-                    <code id="current-trip-id-display" class="text-lg">------</code>
-                    <button onclick="copyTripID()" class="ml-2 text-emerald-600"><i data-lucide="copy" class="w-4 h-4 inline"></i></button>
+            <div id="sync-on-ui" class="hidden text-center space-y-4">
+                <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                    <p class="text-[10px] text-emerald-600 mb-2 font-bold uppercase tracking-widest">當前連線行程 ID</p>
+                    <div class="flex items-center justify-center gap-3">
+                        <code id="current-trip-id-display" class="text-3xl font-mono font-bold text-emerald-800">------</code>
+                        <button onclick="window.copyTripID()" class="p-2 bg-white text-emerald-600 rounded-lg shadow-sm hover:shadow-md transition"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                    </div>
                 </div>
-                <button onclick="stopSync()" class="w-full border border-stone-200 text-stone-500 py-2 rounded-xl hover:bg-stone-50 transition">停止同步</button>
+                <p class="text-xs text-stone-400 italic">分享此 ID 給夥伴，即可開始同步記錄。</p>
+                <button onclick="window.stopSync()" class="w-full border border-stone-200 text-stone-500 py-3 rounded-xl hover:bg-stone-50 transition">停止同步並返回單機模式</button>
             </div>
         </div>
     </div>
 
-    <!-- UI Message Box -->
-    <div id="message-box" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all z-[100]">
-        <span id="message-text"></span>
-    </div>
+    <!-- Message Box -->
+    <div id="message-box" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all z-[100]"><span id="message-text"></span></div>
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, addDoc, updateDoc, deleteDoc, collection, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- 1. Firebase 配置 ---
-        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "",
-                authDomain: "",
-                projectId: "",
-                storageBucket: "",
-                messagingSenderId: "",
-                appId: ""
-            };
+        // --- Firebase 配置 (使用者必須更新此區塊) ---
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyAVH1K1ySFPAhciZ-U2ByF88A_Uc55J1mc",
+            authDomain: "campingapp-fc3b3.firebaseapp.com",
+            projectId: "campingapp-fc3b3",
+            storageBucket: "campingapp-fc3b3.firebasestorage.app",
+            messagingSenderId: "1032462785908",
+            appId: "1:1032462785908:web:4feea04326a4e8c6e26021",
+            measurementId: "G-SCBQNXKKPS"
+        };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'camp-app-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'camp-v1';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let state = {
-            isSyncing: false,
-            tripId: localStorage.getItem('active_trip_id') || null,
-            user: null,
-            members: [],
-            expenses: [],
-            campName: "",
-            campFee: 0,
-            nightFee: 0,
-            campDetails: ""
-        };
-
+        let state = { isSyncing: false, tripId: localStorage.getItem('active_trip_id') || null, user: null, members: [], expenses: [], campName: "", campFee: 0, nightFee: 0, campDetails: "" };
         let unsubscribes = [];
 
-        // --- 2. 身分驗證函式 ---
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Firebase Auth Error:", error);
-                window.showMessage("身分驗證失敗，僅能使用單機模式");
-            }
-        };
-
-        // --- 3. UI 狀態同步 ---
-        const updateSyncUI = (active) => {
-            const dot = document.getElementById('sync-dot');
-            const txt = document.getElementById('sync-text');
-            const offUi = document.getElementById('sync-off-ui');
-            const onUi = document.getElementById('sync-on-ui');
-            const idDisp = document.getElementById('current-trip-id-display');
-
-            if (dot) dot.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-400 animate-pulse' : 'bg-stone-400'}`;
-            if (txt) txt.innerText = active ? `同步中 (${state.tripId})` : (state.user ? "同步就緒" : "身分驗證中...");
-            if (offUi) offUi.classList.toggle('hidden', active);
-            if (onUi) onUi.classList.toggle('hidden', !active);
-            if (active && idDisp) idDisp.innerText = state.tripId;
-        };
-
-        // --- 4. 數據監聽 ---
-        const startRealtimeSync = async (tripId) => {
-            if (!tripId || !auth.currentUser) return;
-            unsubscribes.forEach(u => u()); unsubscribes = [];
-            state.isSyncing = true;
-            state.tripId = tripId;
-            localStorage.setItem('active_trip_id', tripId);
-            updateSyncUI(true);
-
-            const metaRef = doc(db, 'artifacts', appId, 'public', 'data', 'tripMetadata', tripId);
-            unsubscribes.push(onSnapshot(metaRef, (snap) => {
-                if (snap.exists()) {
-                    const data = snap.data();
-                    state.campName = data.campName || "";
-                    state.campFee = data.campFee || 0;
-                    state.nightFee = data.nightFee || 0;
-                    state.campDetails = data.campDetails || "";
-                    syncFormFields(); renderAll(); window.updateLocationUI();
-                }
-            }));
-
-            const membersCol = collection(db, 'artifacts', appId, 'public', 'data', tripId + '_members');
-            unsubscribes.push(onSnapshot(membersCol, (snap) => {
-                state.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderAll();
-            }));
-
-            const expensesCol = collection(db, 'artifacts', appId, 'public', 'data', tripId + '_expenses');
-            unsubscribes.push(onSnapshot(expensesCol, (snap) => {
-                state.expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderAll();
-            }));
-        };
-
-        // --- 5. 公開函式至全域 ---
+        // --- 全域函式綁定 (顯式綁定到 window 以供 HTML 調用) ---
+        window.toggleSyncModal = () => document.getElementById('sync-modal')?.classList.toggle('hidden');
+        
         window.switchTab = (tabId) => {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             const target = document.getElementById(tabId);
@@ -318,44 +245,75 @@
             lucide.createIcons();
         };
 
-        window.toggleSyncModal = () => document.getElementById('sync-modal')?.classList.toggle('hidden');
-        
         window.showMessage = (text) => {
             const box = document.getElementById('message-box');
-            const msg = document.getElementById('message-text');
-            if (!box || !msg) return;
-            msg.innerText = text;
-            box.style.opacity = '1'; box.style.transform = 'translate(-50%, -10px)';
-            setTimeout(() => { box.style.opacity = '0'; box.style.transform = 'translate(-50%, 0px)'; }, 2500);
+            if (box) {
+                document.getElementById('message-text').innerText = text;
+                box.style.opacity = '1'; box.style.transform = 'translate(-50%, -10px)';
+                setTimeout(() => { box.style.opacity = '0'; box.style.transform = 'translate(-50%, 0px)'; }, 2500);
+            }
+        };
+
+        const updateSyncUI = (active) => {
+            const elements = { dot: document.getElementById('sync-dot'), txt: document.getElementById('sync-text'), off: document.getElementById('sync-off-ui'), on: document.getElementById('sync-on-ui'), id: document.getElementById('current-trip-id-display') };
+            const hasKey = firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("你的");
+            
+            if (elements.dot) elements.dot.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-stone-400'}`;
+            if (elements.txt) {
+                if (!hasKey) elements.txt.innerText = "API 配置未填寫";
+                else elements.txt.innerText = active ? `連線中 (${state.tripId})` : (auth.currentUser ? "同步就緒" : "等待驗證...");
+            }
+            if (elements.off) elements.off.classList.toggle('hidden', active);
+            if (elements.on) elements.on.classList.toggle('hidden', !active);
+            if (active && elements.id) elements.id.innerText = state.tripId;
+        };
+
+        // --- 數據同步核心 ---
+        const startRealtimeSync = async (tripId) => {
+            if (!tripId || !auth.currentUser) return;
+            unsubscribes.forEach(u => u()); unsubscribes = [];
+            state.isSyncing = true; state.tripId = tripId;
+            localStorage.setItem('active_trip_id', tripId);
+            updateSyncUI(true);
+
+            // 監聽行程元數據
+            unsubscribes.push(onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'meta', tripId), (snap) => {
+                if (snap.exists()) {
+                    const d = snap.data(); 
+                    state.campName = d.campName || ""; 
+                    state.campFee = d.campFee || 0; 
+                    state.nightFee = d.nightFee || 0; 
+                    state.campDetails = d.campDetails || "";
+                    syncFormFields(); renderAll(); window.updateLocationUI();
+                }
+            }, (err) => { console.error(err); window.showMessage("讀取行程失敗"); }));
+
+            // 監聽成員與支出
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { state.members = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { state.expenses = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
         };
 
         window.startNewTrip = async () => {
-            if (!auth.currentUser) return window.showMessage("請先等待連線");
-            const newTripId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            if (!auth.currentUser) return window.showMessage("請先等待雲端連線");
+            const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tripMetadata', newTripId), { 
-                    campName: state.campName, campFee: state.campFee, nightFee: state.nightFee, campDetails: state.campDetails 
-                });
-                const memCol = collection(db, 'artifacts', appId, 'public', 'data', newTripId + '_members');
-                for (let m of state.members) await addDoc(memCol, { name: m.name });
-                startRealtimeSync(newTripId); window.toggleSyncModal(); window.showMessage("多人同步已開啟！");
-            } catch (err) { console.error(err); window.showMessage("同步失敗，請檢查權限"); }
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', newId), { campName: state.campName, campFee: state.campFee, nightFee: state.nightFee, campDetails: state.campDetails });
+                for (let m of state.members) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', newId + '_m'), { name: m.name });
+                startRealtimeSync(newId); window.toggleSyncModal(); window.showMessage("連線已建立！快分享 ID 給露友");
+            } catch (e) { console.error(e); window.showMessage("建立連線失敗，請檢查 API 設定"); }
         };
 
         window.joinExistingTrip = async () => {
-            const inputId = document.getElementById('join-trip-id').value.trim().toUpperCase();
-            if (!inputId) return;
-            const check = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tripMetadata', inputId));
-            if (check.exists()) { startRealtimeSync(inputId); window.toggleSyncModal(); window.showMessage("已加入行程"); }
-            else window.showMessage("找不到行程 ID");
+            const id = document.getElementById('join-trip-id').value.trim().toUpperCase();
+            if (!id) return;
+            try {
+                const check = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', id));
+                if (check.exists()) { startRealtimeSync(id); window.toggleSyncModal(); window.showMessage("已成功進入露營團"); }
+                else window.showMessage("找不到該 ID，請確認是否拼錯");
+            } catch (e) { window.showMessage("連線錯誤"); }
         };
 
-        window.stopSync = () => {
-            state.isSyncing = false; state.tripId = null;
-            localStorage.removeItem('active_trip_id');
-            unsubscribes.forEach(u => u()); updateSyncUI(false);
-            loadLocalData(); window.showMessage("已返回單機模式");
-        };
+        window.stopSync = () => { unsubscribes.forEach(u => u()); state.isSyncing = false; state.tripId = null; localStorage.removeItem('active_trip_id'); updateSyncUI(false); loadLocalData(); window.showMessage("已切換回離線模式"); };
 
         window.saveTripData = async () => {
             const name = document.getElementById('manual-location').value.trim();
@@ -364,150 +322,172 @@
             const det = document.getElementById('camp-details-input').value;
             if (!name) return window.showMessage("請輸入營地名稱");
             if (state.isSyncing && auth.currentUser) {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tripMetadata', state.tripId), { campName: name, campFee: fee, nightFee: nFee, campDetails: det });
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', state.tripId), { campName: name, campFee: fee, nightFee: nFee, campDetails: det });
             } else {
                 state.campName = name; state.campFee = fee; state.nightFee = nFee; state.campDetails = det;
                 localStorage.setItem('camp_name', name); localStorage.setItem('camp_fee', fee); localStorage.setItem('night_fee', nFee); localStorage.setItem('camp_details', det);
-                renderDashboard(); window.updateLocationUI();
+                renderAll();
             }
-            window.showMessage("行程已儲存");
+            window.showMessage("行程細節已儲存");
         };
 
         window.addMember = async () => {
             const name = document.getElementById('member-name').value.trim();
             if (!name) return;
-            if (state.members.find(m => m.name === name)) return window.showMessage("名字重複");
-            if (state.isSyncing && auth.currentUser) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_members'), { name });
+            if (state.members.find(x => x.name === name)) return window.showMessage("露友名字重複囉！");
+            if (state.isSyncing && auth.currentUser) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m'), { name });
             else { state.members.push({ id: Date.now().toString(), name }); saveLocal(); }
             document.getElementById('member-name').value = "";
+            window.showMessage(`已加入: ${name}`);
         };
 
         window.removeMember = async (id) => {
-            const member = state.members.find(m => m.id == id);
-            if (state.expenses.some(e => e.payerName == member?.name)) return window.showMessage("此成員已有支出紀錄");
-            if (state.isSyncing && auth.currentUser) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_members', id));
-            else { state.members = state.members.filter(m => m.id != id); saveLocal(); }
+            const m = state.members.find(x => x.id == id);
+            if (state.expenses.some(e => e.payerName == m?.name)) return window.showMessage("此人已有支出紀錄，無法移除");
+            if (state.isSyncing && auth.currentUser) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', id));
+            else { state.members = state.members.filter(x => x.id != id); saveLocal(); }
         };
 
         window.addExpense = async () => {
-            if (state.members.length === 0) { window.showMessage("請先新增成員！"); window.switchTab('members-tab'); return; }
+            if (state.members.length === 0) { window.showMessage("請先到成員頁面新增露友！"); window.switchTab('members-tab'); return; }
             const title = document.getElementById('exp-title').value.trim();
             const amount = parseFloat(document.getElementById('exp-amount').value);
             const payerId = document.getElementById('exp-payer').value;
             const payer = state.members.find(m => m.id == payerId);
-            if (!title || isNaN(amount) || !payer) return window.showMessage("資訊不全");
-            const exp = { title, amount, payerName: payer.name, date: new Date().toLocaleDateString(), id: Date.now() };
-            if (state.isSyncing && auth.currentUser) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_expenses'), exp);
-            else { state.expenses.push(exp); saveLocal(); }
+            if (!title || isNaN(amount) || amount <= 0 || !payer) return window.showMessage("請輸入正確的項目名稱與大於 0 的金額");
+            
+            const data = { title, amount, payerName: payer.name, date: new Date().toLocaleDateString(), id: Date.now() };
+            if (state.isSyncing && auth.currentUser) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'), data);
+            else { state.expenses.push(data); saveLocal(); }
             document.getElementById('exp-title').value = ""; document.getElementById('exp-amount').value = "";
+            window.showMessage(`已紀錄支出: ${title}`);
         };
 
         window.removeExpense = async (id) => {
-            if (state.isSyncing && auth.currentUser) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_expenses', id));
+            if (state.isSyncing && auth.currentUser) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', id));
             else { state.expenses = state.expenses.filter(e => e.id != id); saveLocal(); }
         };
 
-        window.copyTripID = () => {
-            const el = document.createElement('textarea'); el.value = state.tripId;
-            document.body.appendChild(el); el.select(); document.execCommand('copy');
-            document.body.removeChild(el); window.showMessage("ID 已複製！");
+        window.resetAllLocalData = () => {
+            if (!confirm("確定要清空所有本地資料嗎？這不會刪除雲端行程。")) return;
+            localStorage.clear();
+            loadLocalData();
+            window.showMessage("已清空所有本地紀錄");
         };
 
-        window.openGoogleMaps = () => { if (state.campName) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(state.campName)}`, '_blank'); };
-
-        // --- 6. 資料邏輯 ---
-        function loadLocalData() {
-            state.members = JSON.parse(localStorage.getItem('camp_members')) || [];
-            state.expenses = JSON.parse(localStorage.getItem('camp_expenses')) || [];
-            state.campName = localStorage.getItem('camp_name') || "";
-            state.campFee = parseFloat(localStorage.getItem('camp_fee')) || 0;
-            state.nightFee = parseFloat(localStorage.getItem('night_fee')) || 0;
-            state.campDetails = localStorage.getItem('camp_details') || "";
-            syncFormFields(); renderAll(); window.updateLocationUI();
+        function saveLocal() { localStorage.setItem('camp_members', JSON.stringify(state.members)); localStorage.setItem('camp_expenses', JSON.stringify(state.expenses)); renderAll(); }
+        
+        function loadLocalData() { 
+            state.members = JSON.parse(localStorage.getItem('camp_members')) || []; 
+            state.expenses = JSON.parse(localStorage.getItem('camp_expenses')) || []; 
+            state.campName = localStorage.getItem('camp_name') || ""; 
+            state.campFee = parseFloat(localStorage.getItem('camp_fee')) || 0; 
+            state.nightFee = parseFloat(localStorage.getItem('night_fee')) || 0; 
+            state.campDetails = localStorage.getItem('camp_details') || ""; 
+            syncFormFields(); renderAll(); window.updateLocationUI(); 
         }
 
-        function syncFormFields() {
-            const el = (id) => document.getElementById(id);
-            if(el('manual-location')) el('manual-location').value = state.campName;
-            if(el('camp-fee-input')) el('camp-fee-input').value = state.campFee || "";
-            if(el('night-fee-input')) el('night-fee-input').value = state.nightFee || "";
-            if(el('camp-details-input')) el('camp-details-input').value = state.campDetails;
+        function syncFormFields() { 
+            const el = (id) => document.getElementById(id); 
+            if (el('manual-location')) el('manual-location').value = state.campName; 
+            if (el('camp-fee-input')) el('camp-fee-input').value = state.campFee || ""; 
+            if (el('night-fee-input')) el('night-fee-input').value = state.nightFee || ""; 
+            if (el('camp-details-input')) el('camp-details-input').value = state.campDetails; 
         }
 
-        function saveLocal() {
-            localStorage.setItem('camp_members', JSON.stringify(state.members));
-            localStorage.setItem('camp_expenses', JSON.stringify(state.expenses));
-            renderAll();
+        function calculateSettlement() {
+            if (state.members.length < 2) return [];
+            const total = state.expenses.reduce((sum, e) => sum + e.amount, 0);
+            const perPerson = total / state.members.length;
+            let balances = state.members.map(m => ({ name: m.name, balance: (state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0)) - perPerson }));
+            let creditors = balances.filter(b => b.balance > 0).sort((a,b)=>b.balance-a.balance);
+            let debtors = balances.filter(b => b.balance < 0).sort((a,b)=>a.balance-b.balance);
+            let tx = []; let i=0, j=0;
+            while(i<debtors.length && j<creditors.length) {
+                let amt = Math.min(-debtors[i].balance, creditors[j].balance);
+                if(amt > 0.01) tx.push({ from: debtors[i].name, to: creditors[j].name, amount: amt.toFixed(0) });
+                debtors[i].balance += amt; creditors[j].balance -= amt;
+                if(Math.abs(debtors[i].balance)<0.01) i++; if(Math.abs(creditors[j].balance)<0.01) j++;
+            }
+            return tx;
         }
 
-        // --- 7. UI 渲染 ---
         window.renderAll = () => {
             renderDashboard();
             const mBody = document.getElementById('members-list-body');
             if (mBody) mBody.innerHTML = state.members.map(m => {
                 const paid = state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0);
-                return `<tr class="border-b border-stone-100 text-sm md:text-base"><td class="px-6 py-4 font-medium">${m.name}</td><td class="px-6 py-4 text-right font-bold text-emerald-600">$${paid.toLocaleString()}</td><td class="px-6 py-4 text-right"><button onclick="removeMember('${m.id}')" class="text-rose-500 hover:text-rose-700"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`;
-            }).join('') || '<tr><td colspan="3" class="p-6 text-center text-stone-400 italic">尚無成員</td></tr>';
-
+                return `<tr class="border-b border-stone-100"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 hover:text-rose-600 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`;
+            }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic text-sm">尚未加入任何露友</td></tr>';
+            
             const pSel = document.getElementById('exp-payer');
             if (pSel) pSel.innerHTML = state.members.length === 0 ? '<option value="">請先新增成員</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
-
+            
             const eList = document.getElementById('expense-list');
-            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-400">尚無支出</div>' : state.expenses.slice().sort((a,b)=>b.id-a.id).map(e => `
+            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed border-stone-200 rounded-xl text-sm">目前還沒有支出紀錄</div>' : state.expenses.slice().sort((a,b)=>b.id-a.id).map(e => `
                 <div class="expense-card bg-white p-4 rounded-xl border border-stone-100 flex justify-between items-center shadow-sm">
-                    <div><h4 class="font-bold">${e.title}</h4><p class="text-xs text-stone-500">${e.date} • ${e.payerName} 支付</p></div>
-                    <div class="flex items-center gap-4"><span class="font-bold text-emerald-600">$${e.amount.toLocaleString()}</span><button onclick="removeExpense('${e.id}')" class="text-stone-300 hover:text-rose-500"><i data-lucide="x-circle" class="w-5 h-5"></i></button></div>
+                    <div><h4 class="font-bold text-stone-700">${e.title}</h4><p class="text-[10px] text-stone-400 font-medium uppercase tracking-tighter">${e.date} • ${e.payerName} 支付</p></div>
+                    <div class="flex items-center gap-4"><span class="font-bold text-emerald-600 text-lg">$${e.amount.toLocaleString()}</span><button onclick="window.removeExpense('${e.id}')" class="text-stone-300 hover:text-rose-500 transition"><i data-lucide="x-circle" class="w-5 h-5"></i></button></div>
                 </div>`).join('');
             lucide.createIcons();
         };
 
-        window.renderDashboard = () => {
+        function renderDashboard() {
             const expTotal = state.expenses.reduce((sum, e) => sum + e.amount, 0);
             const campTotal = (state.campFee || 0) + (state.nightFee || 0);
             const avg = state.members.length > 0 ? Math.round(expTotal / state.members.length) : 0;
             const el = (id) => document.getElementById(id);
-            
-            if (el('dash-camp-name')) el('dash-camp-name').innerText = state.campName || "尚未設定";
+            if (el('dash-camp-name')) el('dash-camp-name').innerText = state.campName || "尚未設定目的地";
             if (el('dash-total-expense')) el('dash-total-expense').innerText = `$${expTotal.toLocaleString()}`;
             if (el('dash-avg-expense')) el('dash-avg-expense').innerText = `$${avg.toLocaleString()}`;
             if (el('dash-camp-fee-total')) el('dash-camp-fee-total').innerText = `$${campTotal.toLocaleString()}`;
             if (el('dash-member-count')) el('dash-member-count').innerText = `${state.members.length} 人`;
-            if (el('dash-expense-count')) el('dash-expense-count').innerText = `${state.expenses.length} 筆`;
             if (el('header-camp-name')) el('header-camp-name').innerText = state.campName || "露營小助手";
-            
             const locBtn = el('dash-location-btn-container');
             if (locBtn) state.campName ? locBtn.classList.remove('hidden') : locBtn.classList.add('hidden');
-
             const detailsCard = el('dash-trip-details-card');
             const detailsContent = el('dash-camp-details-content');
             if (detailsCard && detailsContent) {
                 if (state.campFee > 0 || state.nightFee > 0 || state.campDetails) {
                     detailsCard.classList.remove('hidden');
-                    detailsContent.innerHTML = `<div class="flex justify-between"><span>營位費：</span><span class="font-bold">$${state.campFee.toLocaleString()}</span></div>
-                        <div class="flex justify-between"><span>夜衝費：</span><span class="font-bold">$${state.nightFee.toLocaleString()}</span></div>
-                        <div class="mt-2 pt-2 border-t text-stone-400 italic text-xs">備註：${state.campDetails || '無'}</div>`;
+                    detailsContent.innerHTML = `<div class="flex justify-between items-center"><span>營位預估費：</span><b class="text-stone-700">$${state.campFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>夜衝預估費：</span><b class="text-stone-700">$${state.nightFee.toLocaleString()}</b></div><div class="mt-2 border-t border-stone-50 pt-2 italic text-stone-400 text-xs">備註：${state.campDetails || '無內容'}</div>`;
                 } else detailsCard.classList.add('hidden');
             }
+            const dashSettle = el('dash-settlement-list');
+            if (dashSettle) {
+                const tx = calculateSettlement();
+                dashSettle.innerHTML = tx.length > 0 ? tx.map(t => `<div class="flex justify-between items-center bg-emerald-50/50 p-2 rounded-lg text-sm border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-300 py-4 text-sm italic">尚無分帳建議</p>';
+            }
+            const ranking = el('dash-payer-ranking');
+            if (ranking) {
+                if (state.members.length > 0) {
+                    const data = state.members.map(m => ({ name: m.name, paid: state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0) })).sort((a,b)=>b.paid-a.paid);
+                    const max = Math.max(...data.map(p => p.paid), 1);
+                    ranking.innerHTML = data.map(p => `<div class="space-y-1"><div class="flex justify-between text-[10px] text-stone-500 font-bold uppercase"><span>${p.name}</span><span>$${p.paid.toLocaleString()}</span></div><div class="w-full bg-stone-100 rounded-full h-1.5 overflow-hidden shadow-inner"><div class="bg-emerald-500 h-full rounded-full transition-all duration-700" style="width: ${Math.round((p.paid/max)*100)}%"></div></div></div>`).join('');
+                } else ranking.innerHTML = '<p class="text-center text-stone-300 text-sm py-2 italic">暫無支出數據</p>';
+            }
             lucide.createIcons();
+        }
+
+        window.updateLocationUI = () => { const ui = document.getElementById('location-active-ui'); if (ui) ui.classList.toggle('hidden', !state.campName); if (document.getElementById('display-camp-name')) document.getElementById('display-camp-name').innerText = state.campName; };
+        window.copyTripID = () => { const el = document.createElement('textarea'); el.value = state.tripId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); window.showMessage("連線 ID 已複製到剪貼簿！"); };
+        window.openGoogleMaps = () => { if (state.campName) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(state.campName)}`, '_blank'); };
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            } catch (e) { console.error("Firebase Auth Error:", e); window.showMessage("連線服務受限，目前使用單機模式"); }
         };
 
-        window.updateLocationUI = () => {
-            const ui = document.getElementById('location-active-ui');
-            const disp = document.getElementById('display-camp-name');
-            if (state.campName && ui && disp) { ui.classList.remove('hidden'); disp.innerText = state.campName; }
-            else if (ui) ui.classList.add('hidden');
-        };
-
-        // --- 8. 初始化 ---
         const init = async () => {
             await initAuth();
-            onAuthStateChanged(auth, (user) => {
-                state.user = user;
-                if (user && state.tripId) startRealtimeSync(state.tripId);
-                else { loadLocalData(); updateSyncUI(false); }
+            onAuthStateChanged(auth, (u) => { 
+                state.user = u; 
+                if (u && state.tripId) startRealtimeSync(state.tripId); 
+                else { loadLocalData(); updateSyncUI(false); } 
             });
         };
-
         init();
     </script>
 </body>
