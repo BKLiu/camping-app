@@ -1,7 +1,7 @@
 <!-- 
     專案：露營小助手 (Camping Assistant)
-    版本：v1.1.5
-    描述：穩定部署版，修復多人連線時刪除功能無效的問題（修正 ID 覆蓋邏輯）、維持筆劃排序、優化操作體驗。
+    版本：v1.1.9
+    描述：穩定部署版，優化刪除與同步邏輯、強制 ID 類型轉換、移除(筆畫排序)標籤、維持備註格式與展開邏輯。
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -13,39 +13,13 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f8faf8;
-        }
-        .tab-active {
-            border-bottom: 3px solid #059669;
-            color: #059669;
-        }
-        .expense-card { transition: transform 0.2s; }
-        .expense-card:hover { transform: translateY(-2px); }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8faf8; }
+        .tab-active { border-bottom: 3px solid #059669; color: #059669; }
+        .expense-card { transition: transform 0.2s; position: relative; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        
-        /* 統一輸入框樣式 */
-        .uniform-input {
-            width: 100%;
-            border: 1px solid #e5e7eb;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            outline: none;
-            transition: all 0.2s;
-            background-color: #ffffff;
-            height: 3rem;
-        }
-        .uniform-input:focus {
-            border-color: #059669;
-            box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
-        }
-        /* 針對日期選擇器的微調 */
-        input[type="date"].uniform-input {
-            appearance: none;
-            -webkit-appearance: none;
-        }
+        .uniform-input { width: 100%; border: 1px solid #e5e7eb; padding: 0.75rem; border-radius: 0.5rem; outline: none; transition: all 0.2s; background-color: #ffffff; height: 3rem; }
+        .uniform-input:focus { border-color: #059669; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); }
     </style>
 </head>
 <body class="text-stone-800">
@@ -53,9 +27,7 @@
     <!-- Header -->
     <header class="bg-emerald-700 text-white p-4 shadow-lg sticky top-0 z-50">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2">
-                <i data-lucide="layout-dashboard"></i> 露營小助手
-            </h1>
+            <h1 class="text-xl font-bold flex items-center gap-2"><i data-lucide="layout-dashboard"></i> 露營小助手</h1>
             <div class="flex items-center gap-2">
                 <button onclick="window.toggleSyncModal()" id="sync-status-btn" class="text-xs bg-emerald-800 hover:bg-emerald-900 px-3 py-1 rounded-full flex items-center gap-1 transition border border-emerald-600/30">
                     <span id="sync-dot" class="w-2 h-2 bg-stone-400 rounded-full"></span>
@@ -65,7 +37,7 @@
         </div>
     </header>
 
-    <!-- Navigation Tabs -->
+    <!-- Navigation -->
     <nav class="bg-white border-b border-stone-200 sticky top-[60px] z-40">
         <div class="max-w-4xl mx-auto flex overflow-x-auto no-scrollbar">
             <button onclick="window.switchTab('dashboard-tab')" id="btn-dashboard-tab" class="flex-1 min-w-[80px] py-3 text-center font-medium tab-active transition-all">總覽</button>
@@ -76,39 +48,35 @@
     </nav>
 
     <main class="max-w-4xl mx-auto p-4 pb-24">
-        <!-- Dashboard Tab -->
+        <!-- Dashboard -->
         <section id="dashboard-tab" class="space-y-4">
             <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl px-6 py-[22px] text-white shadow-lg">
                 <div class="flex justify-between items-start mb-4">
-                    <div>
-                        <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期
-
-尚未設定目的地</h2>
-                    </div>
+                    <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期\n\n尚未設定目的地</h2>
                     <i data-lucide="tent" class="w-10 h-10 opacity-30 text-white"></i>
                 </div>
                 <div id="dash-location-btn-container" class="hidden text-right">
                     <button onclick="window.openGoogleMaps()" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg text-sm flex items-center gap-2 inline-flex text-white">
-                        <i data-lucide="map" class="w-4 h-4"></i> 開啟地圖導航
+                        <i data-lucide="map" class="w-4 h-4"></i> 開啟導航
                     </button>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">分帳支出總額</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1">分帳支出總額</p>
                     <p id="dash-total-expense" class="text-xl font-bold text-emerald-700">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">每人分擔</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1">每人分擔</p>
                     <p id="dash-avg-expense" class="text-xl font-bold text-blue-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">預估費用(每帳)</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1">預估費用(每帳)</p>
                     <p id="dash-camp-fee-total" class="text-xl font-bold text-amber-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">成員人數</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1">成員人數</p>
                     <p id="dash-member-count" class="text-xl font-bold text-stone-700">0 人</p>
                 </div>
             </div>
@@ -123,9 +91,7 @@
                     <i data-lucide="calculator" class="w-4 h-4 text-emerald-600"></i>
                     <h3 class="font-bold text-sm">結算分帳明細</h3>
                 </div>
-                <div id="dash-settlement-list" class="p-4 space-y-3">
-                    <p class="text-center text-stone-400 py-4 text-sm italic">尚無分帳建議</p>
-                </div>
+                <div id="dash-settlement-list" class="p-4 space-y-3 text-sm"></div>
             </div>
             
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-stone-100">
@@ -134,199 +100,144 @@
             </div>
         </section>
 
-        <!-- Map Tab -->
+        <!-- Trip Settings -->
         <section id="map-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="map-pin"></i> 營地資訊設定</h3>
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營地名稱</label>
-                            <input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="例如：武陵農場..." class="uniform-input">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程日期</label>
-                            <input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input">
-                        </div>
+                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營地名稱</label><input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="營地名稱..." class="uniform-input"></div>
+                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程日期</label><input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營位費 (每帳)</label>
-                            <input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">夜衝費 (每帳)</label>
-                            <input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
-                        </div>
-                        <div class="col-span-2 md:col-span-1">
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">手續費 (每帳)</label>
-                            <input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
-                        </div>
+                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營位費(每帳)</label><input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
+                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">夜衝費(每帳)</label><input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
+                        <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">手續費(每帳)</label><input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程備註</label>
-                        <textarea id="camp-details-input" onkeyup="if(event.key==='Enter' && event.ctrlKey) window.saveTripData()" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea>
-                        <p class="text-[10px] text-stone-400 mt-1 italic">備註欄位：Ctrl + Enter 可儲存</p>
-                    </div>
-                    <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-md">儲存行程資料</button>
-                    <div id="location-active-ui" class="hidden text-center mt-2">
-                        <button onclick="window.openGoogleMaps()" class="text-emerald-700 font-bold underline flex items-center justify-center gap-1 mx-auto"><i data-lucide="external-link" class="w-4 h-4"></i> 在 Google Map 中開啟搜尋</button>
-                    </div>
+                    <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程備註</label><textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea></div>
+                    <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md">儲存行程資料</button>
+                    <div id="location-active-ui" class="hidden text-center mt-2"><button onclick="window.openGoogleMaps()" class="text-emerald-700 font-bold underline flex items-center justify-center gap-1 mx-auto text-sm">在 Google Map 中開啟搜尋</button></div>
                 </div>
             </div>
         </section>
 
-        <!-- Expense Tab -->
+        <!-- Expenses -->
         <section id="expense-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="plus-circle"></i> 新增支出項目</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">支出項目</label>
-                        <input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" placeholder="例如：全聯買菜" class="uniform-input">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">金額</label>
-                        <input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" placeholder="0" class="uniform-input">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">日期</label>
-                        <input type="date" id="exp-date" class="uniform-input bg-white">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">付款人</label>
-                        <select id="exp-payer" class="uniform-input bg-white"></select>
-                    </div>
-                    <div class="md:col-span-2 flex items-end">
-                        <button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-md mt-2">新增紀錄</button>
-                    </div>
+                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">項目</label><input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" class="uniform-input"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">金額</label><input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" class="uniform-input"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">日期</label><input type="date" id="exp-date" class="uniform-input bg-white"></div>
+                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">付款人</label><select id="exp-payer" class="uniform-input bg-white"></select></div>
+                    <div class="md:col-span-2"><button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl mt-2 shadow-sm">新增紀錄</button></div>
                 </div>
             </div>
             <div id="expense-list" class="space-y-3"></div>
         </section>
 
-        <!-- Members Tab -->
+        <!-- Members -->
         <section id="members-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100 flex gap-2">
-                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入露友名字..." class="flex-1 border p-3 rounded-lg outline-none uniform-input">
-                <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-md hover:bg-emerald-700 transition">新增</button>
+                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入名字..." class="flex-1 border p-3 rounded-lg uniform-input">
+                <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-sm">新增</button>
             </div>
             <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-stone-100">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-stone-50 border-b font-bold text-stone-500 uppercase"><tr><th class="p-4">成員</th><th class="p-4 text-right">已墊付總額</th><th class="p-4 text-right">操作</th></tr></thead>
+                    <thead class="bg-stone-50 border-b font-bold text-xs text-stone-500 uppercase"><tr><th class="p-4">成員</th><th class="p-4 text-right">已墊付總額</th><th class="p-4 text-right">操作</th></tr></thead>
                     <tbody id="members-list-body"></tbody>
                 </table>
             </div>
-            
-            <div class="pt-6 border-t border-stone-200">
-                <button onclick="window.resetAllLocalData()" class="text-xs text-rose-400 hover:text-rose-600 flex items-center gap-1 mx-auto transition">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i> 清空所有本地快取資料 (重新開始)
-                </button>
-            </div>
+            <div class="pt-6 border-t border-stone-200"><button onclick="window.resetAllLocalData()" class="text-xs text-rose-400 mx-auto block hover:underline">清空本地快取 (重新開始)</button></div>
         </section>
     </main>
 
     <!-- Sync Modal -->
-    <div id="sync-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-all">
+    <div id="sync-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-6 shadow-2xl">
-            <div class="flex justify-between items-center"><h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="refresh-cw" class="text-emerald-600"></i> 多人連線同步</h2><button onclick="window.toggleSyncModal()" class="p-1 hover:bg-stone-100 rounded-full transition"><i data-lucide="x"></i></button></div>
+            <div class="flex justify-between items-center"><h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="refresh-cw" class="text-emerald-600"></i> 多人連線同步</h2><button onclick="window.toggleSyncModal()" class="p-1"><i data-lucide="x"></i></button></div>
             <div id="sync-off-ui" class="space-y-4">
-                <p class="text-sm text-stone-500 leading-relaxed text-center">將目前已輸入的資料同步至雲端，產生的 ID 即可分享給露友即時編輯。</p>
-                <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 transition shadow-sm flex items-center justify-center gap-2">
-                    <i data-lucide="cloud-upload" class="w-5 h-5 text-white"></i> 同步資料
-                </button>
-                <div class="relative flex items-center py-2"><div class="flex-grow border-t border-stone-200"></div><span class="flex-shrink mx-4 text-stone-400 text-[10px] uppercase font-bold tracking-widest">或者加入現有行程</span><div class="flex-grow border-t border-stone-200"></div></div>
-                
-                <div class="flex flex-row items-center gap-2 w-full">
-                    <input type="text" id="join-trip-id" onkeyup="if(event.key==='Enter') window.joinExistingTrip()" placeholder="輸入行程 ID" class="flex-1 min-w-0 border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 uppercase font-mono text-sm shadow-inner bg-stone-50 uniform-input">
-                    <button onclick="window.joinExistingTrip()" class="flex-shrink-0 bg-stone-800 text-white px-5 py-3 rounded-lg font-bold hover:bg-stone-900 transition shadow-md">加入</button>
+                <p class="text-sm text-stone-500 text-center leading-relaxed">將目前資料同步至雲端，產生的 ID 即可分享給夥伴編輯。</p>
+                <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-md flex items-center justify-center gap-2"><i data-lucide="cloud-upload"></i> 同步資料</button>
+                <div class="relative flex items-center py-2"><div class="flex-grow border-t border-stone-200"></div><span class="flex-shrink mx-4 text-stone-400 text-[10px] font-bold uppercase tracking-widest">或者加入現有行程</span><div class="flex-grow border-t border-stone-200"></div></div>
+                <div class="flex flex-row items-center gap-2 w-full mt-2">
+                    <input type="text" id="join-trip-id" onkeyup="if(event.key==='Enter') window.joinExistingTrip()" placeholder="行程 ID" class="flex-1 uniform-input uppercase font-mono">
+                    <button onclick="window.joinExistingTrip()" class="bg-stone-800 text-white px-5 py-3 rounded-lg font-bold shadow-md">加入</button>
                 </div>
             </div>
             <div id="sync-on-ui" class="hidden text-center space-y-4">
                 <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-inner">
-                    <p class="text-[10px] text-emerald-600 mb-2 font-bold uppercase tracking-widest">當前連線行程 ID</p>
+                    <p class="text-[10px] text-emerald-600 mb-2 font-bold tracking-widest uppercase">當前連線行程 ID</p>
                     <div class="flex items-center justify-center gap-3">
                         <code id="current-trip-id-display" class="text-3xl font-mono font-bold text-emerald-800 tracking-wider">------</code>
-                        <button onclick="window.copyTripID()" class="p-2 bg-white text-emerald-600 rounded-lg shadow-sm hover:shadow-md transition active:scale-95"><i data-lucide="copy" class="w-5 h-5 text-emerald-600"></i></button>
+                        <button onclick="window.copyTripID()" class="p-2 bg-white rounded-lg shadow-sm active:scale-95 transition"><i data-lucide="copy" class="text-emerald-600"></i></button>
                     </div>
                 </div>
-                <p class="text-xs text-stone-400 italic font-medium">分享此 ID 給夥伴，即可開始同步記錄。</p>
-                <button onclick="window.stopSync()" class="w-full border border-stone-200 text-stone-500 py-3 rounded-xl hover:bg-stone-50 transition font-medium">停止同步並返回單機模式</button>
+                <button onclick="window.stopSync()" class="w-full border border-stone-200 py-3 rounded-xl text-stone-500 text-sm hover:bg-stone-50 transition">停止同步並返回單機模式</button>
+                <button onclick="window.clearCloudData()" class="w-full text-rose-400 text-xs mt-4 hover:underline transition">清空此行程在雲端的所有資料</button>
             </div>
         </div>
     </div>
 
     <!-- Message Box -->
-    <div id="message-box" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all z-[100] whitespace-nowrap text-sm"><span id="message-text"></span></div>
+    <div id="message-box" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all z-[100] text-sm"><span id="message-text"></span></div>
 
-    <!-- Firebase -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, addDoc, updateDoc, deleteDoc, collection, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, collection, onSnapshot, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Firebase 配置 ---
         const firebaseConfig = {
             apiKey: "AIzaSyAVH1K1ySFPAhciZ-U2ByF88A_Uc55J1mc",
             authDomain: "campingapp-fc3b3.firebaseapp.com",
             projectId: "campingapp-fc3b3",
             storageBucket: "campingapp-fc3b3.firebasestorage.app",
             messagingSenderId: "1032462785908",
-            appId: "1:1032462785908:web:4feea04326a4e8c6e26021",
-            measurementId: "G-SCBQNXKKPS"
+            appId: "1:1032462785908:web:4feea04326a4e8c6e26021"
         };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'camp-v1';
+        const appId = 'camp-v1';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let state = { 
-            isSyncing: false, 
-            tripId: localStorage.getItem('active_trip_id') || null, 
-            user: null, 
-            members: [], 
-            expenses: [], 
-            campName: "", 
-            campDate: "",
-            campFee: 0, 
-            nightFee: 0, 
-            procFee: 0,
-            campDetails: "",
+            isSyncing: false, tripId: localStorage.getItem('active_trip_id') || null, 
+            user: null, members: [], expenses: [], 
+            campName: "", campDate: "", campFee: 0, nightFee: 0, procFee: 0, campDetails: "",
             detailsExpanded: false
         };
         let unsubscribes = [];
 
-        // --- 全域函式 ---
         window.toggleSyncModal = () => document.getElementById('sync-modal')?.classList.toggle('hidden');
         window.toggleDetails = () => { state.detailsExpanded = !state.detailsExpanded; window.renderDashboard(); };
-        
         window.switchTab = (tabId) => {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.getElementById(tabId)?.classList.remove('hidden');
             ['dashboard-tab', 'map-tab', 'expense-tab', 'members-tab'].forEach(id => {
                 const btn = document.getElementById(`btn-${id}`);
-                if (btn) btn.className = `flex-1 min-w-[80px] py-3 text-center font-medium ${id === tabId ? 'tab-active' : 'text-stone-500'} transition-all`;
+                if (btn) btn.className = `flex-1 min-w-[80px] py-3 text-center font-medium ${id === tabId ? 'tab-active' : 'text-stone-500'}`;
             });
             lucide.createIcons();
         };
 
         window.showMessage = (text) => {
             const box = document.getElementById('message-box');
-            if (box) {
-                document.getElementById('message-text').innerText = text;
-                box.style.opacity = '1'; box.style.transform = 'translate(-50%, -10px)';
-                setTimeout(() => { box.style.opacity = '0'; box.style.transform = 'translate(-50%, 0px)'; }, 2500);
-            }
+            document.getElementById('message-text').innerText = text;
+            box.style.opacity = '1'; setTimeout(() => box.style.opacity = '0', 2500);
         };
 
         const updateSyncUI = (active) => {
-            const elements = { dot: document.getElementById('sync-dot'), txt: document.getElementById('sync-text'), off: document.getElementById('sync-off-ui'), on: document.getElementById('sync-on-ui'), id: document.getElementById('current-trip-id-display') };
-            if (elements.dot) elements.dot.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-stone-400'}`;
-            if (elements.txt) elements.txt.innerText = active ? `連線中 (${state.tripId})` : (auth.currentUser ? "同步就緒" : "連線中...");
-            if (elements.off) elements.off.classList.toggle('hidden', active);
-            if (elements.on) elements.on.classList.toggle('hidden', !active);
-            if (active && elements.id) elements.id.innerText = state.tripId;
+            const dot = document.getElementById('sync-dot');
+            const txt = document.getElementById('sync-text');
+            const off = document.getElementById('sync-off-ui');
+            const on = document.getElementById('sync-on-ui');
+            if (dot) dot.className = `w-2 h-2 rounded-full ${active ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' : 'bg-stone-400'}`;
+            if (txt) txt.innerText = active ? `連線中 (${state.tripId})` : (auth.currentUser ? "同步就緒" : "等待連線...");
+            if (off) off.classList.toggle('hidden', active);
+            if (on) on.classList.toggle('hidden', !active);
+            if (active) document.getElementById('current-trip-id-display').innerText = state.tripId;
         };
 
         const startRealtimeSync = async (tripId) => {
@@ -338,56 +249,66 @@
 
             unsubscribes.push(onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'meta', tripId), (snap) => {
                 if (snap.exists()) {
-                    const d = snap.data(); 
-                    state.campName = d.campName || ""; 
-                    state.campDate = d.campDate || "";
-                    state.campFee = d.campFee || 0; 
-                    state.nightFee = d.nightFee || 0; 
-                    state.procFee = d.procFee || 0;
+                    const d = snap.data();
+                    state.campName = d.campName || ""; state.campDate = d.campDate || "";
+                    state.campFee = d.campFee || 0; state.nightFee = d.nightFee || 0; state.procFee = d.procFee || 0;
                     state.campDetails = d.campDetails || "";
-                    syncFormFields(); renderAll(); window.updateLocationUI();
+                    syncFormFields(); renderAll(); 
                 }
             }));
 
-            // 修復關鍵點：確保文件 ID (d.id) 覆蓋資料內的 id
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { 
-                state.members = snap.docs.map(d => ({ ...d.data(), id: d.id })); 
-                renderAll(); 
+            // 核心映射：優先使用 Firebase 的文件名稱作為 ID，確保刪除能精確對準
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => {
+                state.members = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                renderAll();
             }));
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { 
-                state.expenses = snap.docs.map(d => ({ ...d.data(), id: d.id })); 
-                renderAll(); 
+
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => {
+                state.expenses = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                renderAll();
             }));
         };
 
         window.startNewTrip = async () => {
-            if (!auth.currentUser) return window.showMessage("等待連線中...");
+            if (!auth.currentUser) return;
             const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', newId), { 
                     campName: state.campName, campDate: state.campDate, campFee: state.campFee, nightFee: state.nightFee, procFee: state.procFee, campDetails: state.campDetails 
                 });
-                const membersCol = collection(db, 'artifacts', appId, 'public', 'data', newId + '_m');
-                for (let m of state.members) { await addDoc(membersCol, { name: m.name }); }
-                const expensesCol = collection(db, 'artifacts', appId, 'public', 'data', newId + '_e');
-                for (let e of state.expenses) {
-                    await addDoc(expensesCol, { title: e.title, amount: e.amount, payerName: e.payerName, date: e.date });
+                // 同步時強制將文件名稱設為資料 ID
+                for (let m of state.members) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', newId + '_m', String(m.id)), { name: m.name, id: m.id });
                 }
-                startRealtimeSync(newId); window.toggleSyncModal(); window.showMessage("已成功將資料同步至雲端！");
-            } catch (e) { console.error("Sync Data Error:", e); window.showMessage("同步失敗"); }
+                for (let e of state.expenses) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', newId + '_e', String(e.id)), { 
+                        title: e.title, amount: e.amount, payerName: e.payerName, date: e.date, id: e.id 
+                    });
+                }
+                startRealtimeSync(newId); window.toggleSyncModal(); window.showMessage("雲端同步已開啟");
+            } catch (e) { window.showMessage("同步失敗"); }
         };
 
         window.joinExistingTrip = async () => {
             const id = document.getElementById('join-trip-id').value.trim().toUpperCase();
             if (!id) return;
-            try {
-                const check = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', id));
-                if (check.exists()) { startRealtimeSync(id); window.toggleSyncModal(); window.showMessage("已加入露營團"); }
-                else window.showMessage("找不到該 ID");
-            } catch (e) { window.showMessage("連線錯誤"); }
+            const check = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', id));
+            if (check.exists()) { startRealtimeSync(id); window.toggleSyncModal(); window.showMessage("成功加入行程"); }
+            else window.showMessage("行程 ID 找不到");
         };
 
-        window.stopSync = () => { unsubscribes.forEach(u => u()); state.isSyncing = false; state.tripId = null; localStorage.removeItem('active_trip_id'); updateSyncUI(false); loadLocalData(); window.showMessage("切換為單機模式"); };
+        window.stopSync = () => { unsubscribes.forEach(u => u()); state.isSyncing = false; state.tripId = null; localStorage.removeItem('active_trip_id'); updateSyncUI(false); loadLocalData(); window.showMessage("已切換為單機模式"); };
+
+        window.clearCloudData = async () => {
+            if (!state.isSyncing || !state.tripId || !confirm("確定要清空雲端上的所有紀錄（支出與成員）嗎？此操作不可恢復。")) return;
+            try {
+                const eDocs = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'));
+                for (let d of eDocs.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', d.id));
+                const mDocs = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m'));
+                for (let d of mDocs.docs) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', d.id));
+                window.showMessage("雲端資料已清空");
+            } catch (e) { window.showMessage("清空失敗"); }
+        };
 
         window.saveTripData = async () => {
             const name = document.getElementById('manual-location').value.trim();
@@ -398,83 +319,69 @@
             const det = document.getElementById('camp-details-input').value;
             if (!name) return window.showMessage("請輸入營地名稱");
             if (state.isSyncing) {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', state.tripId), { 
-                    campName: name, campDate: date, campFee: fee, nightFee: nFee, procFee: pFee, campDetails: det 
-                }, { merge: true });
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', state.tripId), { campName: name, campDate: date, campFee: fee, nightFee: nFee, procFee: pFee, campDetails: det }, { merge: true });
             } else {
                 state.campName = name; state.campDate = date; state.campFee = fee; state.nightFee = nFee; state.procFee = pFee; state.campDetails = det;
                 localStorage.setItem('camp_name', name); localStorage.setItem('camp_date', date); localStorage.setItem('camp_fee', fee); localStorage.setItem('night_fee', nFee); localStorage.setItem('proc_fee', pFee); localStorage.setItem('camp_details', det);
                 renderAll();
             }
-            window.showMessage("行程資料已儲存");
+            window.showMessage("行程資料已更新");
         };
 
         window.addMember = async () => {
             const name = document.getElementById('member-name').value.trim();
             if (!name) return;
-            if (state.members.find(x => x.name === name)) return window.showMessage("露友名字重複囉");
-            if (state.isSyncing) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m'), { name });
-            else { state.members.push({ id: Date.now().toString(), name }); saveLocal(); }
+            const newId = Date.now();
+            if (state.isSyncing) await setDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', String(newId)), { name, id: newId });
+            else { state.members.push({ id: newId, name }); saveLocal(); }
             document.getElementById('member-name').value = "";
         };
 
         window.removeMember = async (id) => {
             const m = state.members.find(x => x.id == id);
-            if (state.expenses.some(e => e.payerName == m?.name)) return window.showMessage("此人已有支出紀錄");
+            if (state.expenses.some(e => e.payerName == m?.name)) return window.showMessage("此人已有支出不可刪除");
             if (state.isSyncing) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', id));
-                } catch (e) { window.showMessage("刪除失敗"); }
-            } else { 
-                state.members = state.members.filter(x => x.id != id); saveLocal(); 
-            }
+                try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', String(id))); } catch (e) { window.showMessage("刪除失敗"); }
+            } else { state.members = state.members.filter(x => x.id != id); saveLocal(); }
         };
 
         window.addExpense = async () => {
-            if (state.members.length === 0) { window.showMessage("請先新增成員！"); window.switchTab('members-tab'); return; }
             const title = document.getElementById('exp-title').value.trim();
             const amount = parseFloat(document.getElementById('exp-amount').value);
             const date = document.getElementById('exp-date').value;
             const payerId = document.getElementById('exp-payer').value;
             const payer = state.members.find(m => m.id == payerId);
-            if (!title || isNaN(amount) || amount <= 0 || !payer || !date) return window.showMessage("資訊不全或金額錯誤");
-            
-            const data = { title, amount, payerName: payer.name, date };
+            if (!title || isNaN(amount) || amount <= 0 || !payer) return window.showMessage("請檢查輸入欄位");
+            const newId = Date.now();
             if (state.isSyncing) {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'), data);
-            } else {
-                state.expenses.push({ ...data, id: Date.now().toString() }); saveLocal();
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', String(newId)), { 
+                    title, amount, payerName: payer.name, date, id: newId 
+                });
+            } else { 
+                state.expenses.push({ id: newId, title, amount, payerName: payer.name, date }); saveLocal(); 
             }
-            
-            document.getElementById('exp-title').value = ""; 
-            document.getElementById('exp-amount').value = "";
-            document.getElementById('exp-title').focus();
+            document.getElementById('exp-title').value = ""; document.getElementById('exp-amount').value = ""; document.getElementById('exp-title').focus();
             window.showMessage(`已紀錄: ${title}`);
         };
 
         window.removeExpense = async (id) => {
             if (state.isSyncing) {
                 try {
-                    // ID 現在是字串格式的文件 ID，刪除將會生效
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', id));
-                    window.showMessage("已刪除雲端紀錄");
-                } catch (e) {
-                    window.showMessage("刪除失敗");
-                }
+                    // 樂觀更新：先從本地移除提高反應速度
+                    state.expenses = state.expenses.filter(e => String(e.id) !== String(id));
+                    renderAll();
+                    // 強制使用字串 ID 進行刪除（對準文件名稱）
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', String(id)));
+                    window.showMessage("紀錄已刪除");
+                } catch (e) { window.showMessage("刪除失敗"); }
             } else {
                 state.expenses = state.expenses.filter(e => e.id != id);
                 saveLocal();
-                window.showMessage("已刪除紀錄");
             }
         };
 
-        window.resetAllLocalData = () => {
-            if (!confirm("確定要清空本地紀錄嗎？這不會刪除雲端行程。")) return;
-            localStorage.clear(); loadLocalData(); window.showMessage("已清空本地資料");
-        };
-
         function saveLocal() { localStorage.setItem('camp_members', JSON.stringify(state.members)); localStorage.setItem('camp_expenses', JSON.stringify(state.expenses)); renderAll(); }
-        function loadLocalData() { state.members = JSON.parse(localStorage.getItem('camp_members')) || []; state.expenses = JSON.parse(localStorage.getItem('camp_expenses')) || []; state.campName = localStorage.getItem('camp_name') || ""; state.campDate = localStorage.getItem('camp_date') || ""; state.campFee = parseFloat(localStorage.getItem('camp_fee')) || 0; state.nightFee = parseFloat(localStorage.getItem('night_fee')) || 0; state.procFee = parseFloat(localStorage.getItem('proc_fee')) || 0; state.campDetails = localStorage.getItem('camp_details') || ""; syncFormFields(); renderAll(); window.updateLocationUI(); }
+        function loadLocalData() { state.members = JSON.parse(localStorage.getItem('camp_members')) || []; state.expenses = JSON.parse(localStorage.getItem('camp_expenses')) || []; state.campName = localStorage.getItem('camp_name') || ""; state.campDate = localStorage.getItem('camp_date') || ""; state.campFee = parseFloat(localStorage.getItem('camp_fee')) || 0; state.nightFee = parseFloat(localStorage.getItem('night_fee')) || 0; state.procFee = parseFloat(localStorage.getItem('proc_fee')) || 0; state.campDetails = localStorage.getItem('camp_details') || ""; syncFormFields(); renderAll(); }
         function syncFormFields() { const el = (id) => document.getElementById(id); if (el('manual-location')) el('manual-location').value = state.campName; if (el('camp-date-input')) el('camp-date-input').value = state.campDate; if (el('camp-fee-input')) el('camp-fee-input').value = state.campFee || ""; if (el('night-fee-input')) el('night-fee-input').value = state.nightFee || ""; if (el('proc-fee-input')) el('proc-fee-input').value = state.procFee || ""; if (el('camp-details-input')) el('camp-details-input').value = state.campDetails; if (el('exp-date')) el('exp-date').value = new Date().toISOString().split('T')[0]; }
 
         function calculateSettlement() {
@@ -487,7 +394,7 @@
             let tx = []; let i=0, j=0;
             while(i<debtors.length && j<creditors.length) {
                 let amt = Math.min(-debtors[i].balance, creditors[j].balance);
-                if(amt > 0.01) tx.push({ from: debtors[i].name, to: creditors[j].name, amount: amt.toFixed(0) });
+                tx.push({ from: debtors[i].name, to: creditors[j].name, amount: amt.toFixed(0) });
                 debtors[i].balance += amt; creditors[j].balance -= amt;
                 if(Math.abs(debtors[i].balance)<0.01) i++; if(Math.abs(creditors[j].balance)<0.01) j++;
             }
@@ -496,127 +403,81 @@
 
         window.renderAll = () => {
             window.renderDashboard();
-            const sortedMembers = [...state.members].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant-TW'));
-            
-            const mBody = document.getElementById('members-list-body');
-            if (mBody) mBody.innerHTML = sortedMembers.map(m => {
+            const sortedM = [...state.members].sort((a,b)=>a.name.localeCompare(b.name, 'zh-Hant-TW'));
+            document.getElementById('members-list-body').innerHTML = sortedM.map(m => {
                 const paid = state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0);
-                return `<tr class="border-b border-stone-100"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 p-1 hover:bg-rose-50 rounded transition"><i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i></button></td></tr>`;
-            }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic text-sm">尚未加入露友</td></tr>';
+                return `<tr class="border-b border-stone-100 transition hover:bg-stone-50"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 p-2 active:scale-90 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`;
+            }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic">尚未加入成員</td></tr>';
             
             const pSel = document.getElementById('exp-payer');
             if (pSel) {
-                const currentPayerId = pSel.value;
-                pSel.innerHTML = state.members.length === 0 ? '<option value="">請先新增成員</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
-                if (currentPayerId && state.members.some(m => m.id == currentPayerId)) {
-                    pSel.value = currentPayerId;
-                }
+                const cur = pSel.value;
+                pSel.innerHTML = state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (cur && state.members.some(m => String(m.id) === String(cur))) pSel.value = cur;
             }
             
-            const eList = document.getElementById('expense-list');
-            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl text-sm">暫無支出</div>' : state.expenses.slice().sort((a,b)=> {
-                const idA = typeof a.id === 'string' ? a.id : a.id.toString();
-                const idB = typeof b.id === 'string' ? b.id : b.id.toString();
-                return idB.localeCompare(idA);
-            }).map(e => `
+            document.getElementById('expense-list').innerHTML = state.expenses.slice().sort((a,b)=>String(b.id).localeCompare(String(a.id))).map(e => `
                 <div class="expense-card bg-white p-4 rounded-xl border border-stone-100 flex justify-between items-center shadow-sm">
-                    <div class="flex-1 pr-2">
-                        <h4 class="font-bold text-stone-700 text-sm md:text-base">${e.title}</h4>
-                        <p class="text-[10px] text-stone-400 font-bold uppercase tracking-tight">${e.date} • ${e.payerName} 付</p>
-                    </div>
+                    <div class="flex-1 pr-8"><h4 class="font-bold text-stone-700 text-sm md:text-base">${e.title}</h4><p class="text-[10px] text-stone-400 font-bold uppercase tracking-tight">${e.date} • ${e.payerName} 付</p></div>
                     <div class="flex items-center gap-2">
                         <span class="font-bold text-emerald-600 text-lg">$${e.amount.toLocaleString()}</span>
-                        <button type="button" onclick="event.stopPropagation(); window.removeExpense('${e.id}')" 
-                                class="p-2 -mr-2 text-stone-300 hover:text-rose-500 transition active:scale-90 flex items-center justify-center">
-                            <i data-lucide="x-circle" class="w-6 h-6"></i>
-                        </button>
+                        <button type="button" onclick="window.removeExpense('${e.id}')" class="p-2 -mr-1 text-stone-300 hover:text-rose-500 active:scale-75 transition duration-200"><i data-lucide="x-circle" class="w-6 h-6"></i></button>
                     </div>
-                </div>`).join('');
+                </div>`).join('') || '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl">暫無支出紀錄</div>';
             lucide.createIcons();
         };
 
         window.renderDashboard = () => {
-            const expTotal = state.expenses.reduce((sum, e) => sum + e.amount, 0);
-            const campTotal = (state.campFee || 0) + (state.nightFee || 0) + (state.procFee || 0);
-            const avg = state.members.length > 0 ? Math.round(expTotal / state.members.length) : 0;
             const el = (id) => document.getElementById(id);
-            
-            if (el('dash-camp-name')) {
-                const dateText = state.campDate || "尚未設定日期";
-                const nameText = state.campName || "尚未設定目的地";
-                el('dash-camp-name').innerHTML = `${dateText}<br><br>${nameText}`;
-            }
-
+            if (el('dash-camp-name')) el('dash-camp-name').innerHTML = `${state.campDate || "尚未設定日期"}\n\n${state.campName || "尚未設定目的地"}`;
+            const expTotal = state.expenses.reduce((sum, e) => sum + e.amount, 0);
             if (el('dash-total-expense')) el('dash-total-expense').innerText = `$${expTotal.toLocaleString()}`;
-            if (el('dash-avg-expense')) el('dash-avg-expense').innerText = `$${avg.toLocaleString()}`;
-            if (el('dash-camp-fee-total')) el('dash-camp-fee-total').innerText = `$${campTotal.toLocaleString()}`;
+            if (el('dash-avg-expense')) el('dash-avg-expense').innerText = `$${(state.members.length ? Math.round(expTotal / state.members.length) : 0).toLocaleString()}`;
+            if (el('dash-camp-fee-total')) el('dash-camp-fee-total').innerText = `$${(state.campFee + state.nightFee + state.procFee).toLocaleString()}`;
             if (el('dash-member-count')) el('dash-member-count').innerText = `${state.members.length} 人`;
             
-            const locBtn = el('dash-location-btn-container');
-            if (locBtn) state.campName ? locBtn.classList.remove('hidden') : locBtn.classList.add('hidden');
-            
             const detailsCard = el('dash-trip-details-card');
-            const detailsContent = el('dash-camp-details-content');
-            if (detailsCard && detailsContent) {
+            if (detailsCard) {
                 if (state.campName || state.campDate || state.campFee > 0 || state.nightFee > 0 || state.procFee > 0 || state.campDetails) {
                     detailsCard.classList.remove('hidden');
-                    let feeHtml = `<div class="flex justify-between items-center mb-1"><span>營位預估 (每帳)：</span><b class="text-stone-700">$${state.campFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>夜衝預估 (每帳)：</span><b class="text-stone-700">$${state.nightFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>手續費 (每帳)：</span><b class="text-stone-700">$${state.procFee.toLocaleString()}</b></div>`;
-                    
+                    let feeHtml = `<div class="flex justify-between items-center mb-1"><span>營位費(每帳)：</span><b>$${state.campFee.toLocaleString()}</b></div><div class="flex justify-between items-center mb-1"><span>夜衝費(每帳)：</span><b>$${state.nightFee.toLocaleString()}</b></div><div class="flex justify-between items-center mb-1"><span>手續費(每帳)：</span><b>$${state.procFee.toLocaleString()}</b></div>`;
                     let detHtml = '';
                     if (state.campDetails) {
-                        const lineCount = state.campDetails.split('\n').length;
-                        const isLong = lineCount > 3 || state.campDetails.length > 120;
-                        const displayClass = state.detailsExpanded ? 'whitespace-pre-wrap' : 'whitespace-pre-wrap line-clamp-3';
-                        
-                        detHtml = `<div class="mt-2 border-t border-stone-50 pt-2 text-stone-500 text-xs">
-                            <div class="${displayClass}">${state.campDetails}</div>
-                            ${isLong ? `<button onclick="window.toggleDetails()" class="text-emerald-600 font-bold mt-1 hover:underline">${state.detailsExpanded ? '收起' : '... 更多'}</button>` : ''}
-                        </div>`;
+                        const isLong = state.campDetails.split('\n').length > 3 || state.campDetails.length > 120;
+                        detHtml = `<div class="mt-2 border-t pt-2 text-stone-500 text-xs font-normal"><div class="${state.detailsExpanded ? '' : 'line-clamp-3'} whitespace-pre-wrap">${state.campDetails}</div>${isLong ? `<button onclick="window.toggleDetails()" class="text-emerald-600 font-bold mt-1 hover:underline">${state.detailsExpanded ? '收起' : '... 更多'}</button>` : ''}</div>`;
                     }
-                    detailsContent.innerHTML = feeHtml + detHtml;
+                    el('dash-camp-details-content').innerHTML = feeHtml + detHtml;
                 } else detailsCard.classList.add('hidden');
             }
-            
             const dashSettle = el('dash-settlement-list');
             if (dashSettle) {
                 const tx = calculateSettlement();
-                dashSettle.innerHTML = tx.length > 0 ? tx.map(t => `<div class="flex justify-between bg-emerald-50/50 p-2 rounded-lg text-sm border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-400 py-4 text-sm italic">尚無分帳建議</p>';
+                dashSettle.innerHTML = tx.length ? tx.map(t => `<div class="flex justify-between bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-400 py-4 italic text-sm">尚無分帳建議</p>';
             }
-            
             const ranking = el('dash-payer-ranking');
             if (ranking) {
-                if (state.members.length > 0) {
-                    const data = state.members.map(m => ({ name: m.name, paid: state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0) })).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant-TW'));
+                if (state.members.length) {
+                    const data = state.members.map(m => ({ name: m.name, paid: state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0) })).sort((a,b)=>a.name.localeCompare(b.name, 'zh-Hant-TW'));
                     const max = Math.max(...data.map(p => p.paid), 1);
-                    ranking.innerHTML = data.map(p => `<div class="space-y-1 text-xs"><span>${p.name} ($${p.paid.toLocaleString()})</span><div class="w-full bg-stone-100 rounded-full h-1"><div class="bg-emerald-500 h-full rounded-full transition-all duration-700" style="width: ${Math.round((p.paid/max)*100)}%"></div></div></div>`).join('');
-                } else ranking.innerHTML = '<p class="text-center text-stone-400 text-xs font-medium italic py-2">暫無數據</p>';
+                    ranking.innerHTML = data.map(p => `<div class="space-y-1 text-xs"><span>${p.name} ($${p.paid.toLocaleString()})</span><div class="w-full bg-stone-100 rounded-full h-1 shadow-inner"><div class="bg-emerald-500 h-full rounded-full transition-all duration-700" style="width: ${Math.min(100, Math.round((p.paid/max)*100))}%"></div></div></div>`).join('');
+                } else ranking.innerHTML = '<p class="text-center text-stone-400 text-xs py-2 italic">暫無支出數據</p>';
             }
             lucide.createIcons();
         };
 
-        window.updateLocationUI = () => { const ui = document.getElementById('location-active-ui'); if (ui) ui.classList.toggle('hidden', !state.campName); if (document.getElementById('display-camp-name')) document.getElementById('display-camp-name').innerText = state.campName; };
-        window.copyTripID = () => { const el = document.createElement('textarea'); el.value = state.tripId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); window.showMessage("連線 ID 已複製！"); };
         window.openGoogleMaps = () => { if (state.campName) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(state.campName)}`, '_blank'); };
+        window.copyTripID = () => { const el = document.createElement('textarea'); el.value = state.tripId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); window.showMessage("ID 已複製到剪貼簿！"); };
+
+        onAuthStateChanged(auth, (u) => { 
+            state.user = u; 
+            if (u && state.tripId) startRealtimeSync(state.tripId); 
+            else { loadLocalData(); updateSyncUI(false); } 
+        });
 
         const initAuth = async () => {
-            const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            try {
-                if (initialToken) {
-                    try { await signInWithCustomToken(auth, initialToken); }
-                    catch (tokenErr) { console.warn("Token mismatch, falling back to anonymous."); await signInAnonymously(auth); }
-                } else { await signInAnonymously(auth); }
-            } catch (e) { console.error("Firebase Auth Final Error:", e); window.showMessage("身分驗證失敗，目前使用單機模式"); }
+            try { await signInAnonymously(auth); } catch (e) { window.showMessage("伺服器連線失敗"); }
         };
-
-        const init = async () => {
-            await initAuth();
-            onAuthStateChanged(auth, (u) => { 
-                state.user = u; 
-                if (u && state.tripId) startRealtimeSync(state.tripId); 
-                else { loadLocalData(); updateSyncUI(false); } 
-            });
-        };
-        init();
+        initAuth();
     </script>
 </body>
 </html>
