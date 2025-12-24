@@ -1,7 +1,7 @@
 <!-- 
     專案：露營小助手 (Camping Assistant)
-    版本：v1.0.8
-    描述：穩定部署版，優化資料同步邏輯、移除介面排序文字標記、維持筆劃排序邏輯。
+    版本：v1.1.3
+    描述：穩定部署版，優化分帳連續輸入體驗（維持付款人、游標回位）、更名「結算分帳明細」、維持備註格式與展開邏輯。
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -26,10 +26,25 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* 自訂輸入框焦點樣式 */
-        .input-focus:focus {
+        /* 統一輸入框樣式 */
+        .uniform-input {
+            width: 100%;
+            border: 1px solid #e5e7eb;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            outline: none;
+            transition: all 0.2s;
+            background-color: #ffffff;
+            height: 3rem;
+        }
+        .uniform-input:focus {
             border-color: #059669;
             box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+        }
+        /* 針對日期選擇器的微調 */
+        input[type="date"].uniform-input {
+            appearance: none;
+            -webkit-appearance: none;
         }
     </style>
 </head>
@@ -63,23 +78,24 @@
     <main class="max-w-4xl mx-auto p-4 pb-24">
         <!-- Dashboard Tab -->
         <section id="dashboard-tab" class="space-y-4">
-            <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
+            <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl px-6 py-[22px] text-white shadow-lg">
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <p class="text-emerald-100 text-sm">當前行程</p>
-                        <h2 id="dash-camp-name" class="text-2xl font-bold">尚未設定</h2>
+                        <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期
+
+尚未設定目的地</h2>
                     </div>
-                    <i data-lucide="tent" class="w-10 h-10 opacity-30"></i>
+                    <i data-lucide="tent" class="w-10 h-10 opacity-30 text-white"></i>
                 </div>
                 <div id="dash-location-btn-container" class="hidden text-right">
-                    <button onclick="window.openGoogleMaps()" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg text-sm flex items-center gap-2 inline-flex">
+                    <button onclick="window.openGoogleMaps()" class="bg-white/20 hover:bg-white/30 transition px-4 py-2 rounded-lg text-sm flex items-center gap-2 inline-flex text-white">
                         <i data-lucide="map" class="w-4 h-4"></i> 開啟地圖導航
                     </button>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
                     <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">分帳支出總額</p>
                     <p id="dash-total-expense" class="text-xl font-bold text-emerald-700">$0</p>
                 </div>
@@ -88,7 +104,7 @@
                     <p id="dash-avg-expense" class="text-xl font-bold text-blue-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">營位/夜衝/手續費</p>
+                    <p class="text-[10px] text-stone-400 uppercase font-bold tracking-wider mb-1">預估費用(每帳)</p>
                     <p id="dash-camp-fee-total" class="text-xl font-bold text-amber-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
@@ -97,7 +113,7 @@
                 </div>
             </div>
 
-            <div id="dash-trip-details-card" class="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hidden text-sm text-stone-500">
+            <div id="dash-trip-details-card" class="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hidden text-sm">
                 <h3 class="font-bold text-stone-600 mb-3 flex items-center gap-2"><i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600"></i> 行程詳情</h3>
                 <div id="dash-camp-details-content" class="space-y-2 text-stone-700"></div>
             </div>
@@ -105,7 +121,7 @@
             <div class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
                 <div class="bg-stone-50 px-4 py-3 border-b border-stone-100 flex items-center gap-2">
                     <i data-lucide="calculator" class="w-4 h-4 text-emerald-600"></i>
-                    <h3 class="font-bold text-sm">結算分帳建議</h3>
+                    <h3 class="font-bold text-sm">結算分帳明細</h3>
                 </div>
                 <div id="dash-settlement-list" class="p-4 space-y-3">
                     <p class="text-center text-stone-400 py-4 text-sm italic">尚無分帳建議</p>
@@ -118,7 +134,7 @@
             </div>
         </section>
 
-        <!-- Map Tab (Trip Settings) -->
+        <!-- Map Tab -->
         <section id="map-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="map-pin"></i> 營地資訊設定</h3>
@@ -126,30 +142,30 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營地名稱</label>
-                            <input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="例如：武陵農場..." class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                            <input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="例如：武陵農場..." class="uniform-input">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程日期</label>
-                            <input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="w-full border p-3 rounded-lg outline-none input-focus transition-all bg-white">
+                            <input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營位費 (每帳)</label>
-                            <input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                            <input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">夜衝費 (每帳)</label>
-                            <input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                            <input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
                         </div>
                         <div class="col-span-2 md:col-span-1">
-                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">手續費 (總額)</label>
-                            <input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                            <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">手續費 (每帳)</label>
+                            <input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
                         </div>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程備註</label>
-                        <textarea id="camp-details-input" onkeyup="if(event.key==='Enter' && event.ctrlKey) window.saveTripData()" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none input-focus transition-all"></textarea>
+                        <textarea id="camp-details-input" onkeyup="if(event.key==='Enter' && event.ctrlKey) window.saveTripData()" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea>
                         <p class="text-[10px] text-stone-400 mt-1 italic">備註欄位：Ctrl + Enter 可儲存</p>
                     </div>
                     <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-md">儲存行程資料</button>
@@ -167,19 +183,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">支出項目</label>
-                        <input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" placeholder="例如：全聯買菜" class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                        <input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" placeholder="例如：全聯買菜" class="uniform-input">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">金額</label>
-                        <input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" placeholder="0" class="w-full border p-3 rounded-lg outline-none input-focus transition-all">
+                        <input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" placeholder="0" class="uniform-input">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">日期</label>
-                        <input type="date" id="exp-date" class="w-full border p-3 rounded-lg outline-none input-focus transition-all bg-white">
+                        <input type="date" id="exp-date" class="uniform-input bg-white">
                     </div>
                     <div>
                         <label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">付款人</label>
-                        <select id="exp-payer" class="w-full border p-3 rounded-lg outline-none bg-white"></select>
+                        <select id="exp-payer" class="uniform-input bg-white"></select>
                     </div>
                     <div class="md:col-span-2 flex items-end">
                         <button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-md mt-2">新增紀錄</button>
@@ -192,12 +208,12 @@
         <!-- Members Tab -->
         <section id="members-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100 flex gap-2">
-                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入露友名字..." class="flex-1 border p-3 rounded-lg outline-none input-focus transition-all">
+                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入露友名字..." class="flex-1 border p-3 rounded-lg outline-none uniform-input">
                 <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-md hover:bg-emerald-700 transition">新增</button>
             </div>
             <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-stone-100">
                 <table class="w-full text-left text-sm">
-                    <thead class="bg-stone-50 border-b font-bold text-xs text-stone-500 uppercase"><tr><th class="p-4">成員</th><th class="p-4 text-right">已墊付總額</th><th class="p-4 text-right">操作</th></tr></thead>
+                    <thead class="bg-stone-50 border-b font-bold text-stone-500 uppercase"><tr><th class="p-4">成員</th><th class="p-4 text-right">已墊付總額</th><th class="p-4 text-right">操作</th></tr></thead>
                     <tbody id="members-list-body"></tbody>
                 </table>
             </div>
@@ -217,12 +233,12 @@
             <div id="sync-off-ui" class="space-y-4">
                 <p class="text-sm text-stone-500 leading-relaxed text-center">將目前已輸入的資料同步至雲端，產生的 ID 即可分享給露友即時編輯。</p>
                 <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl hover:bg-emerald-700 transition shadow-sm flex items-center justify-center gap-2">
-                    <i data-lucide="cloud-upload" class="w-5 h-5"></i> 同步資料
+                    <i data-lucide="cloud-upload" class="w-5 h-5 text-white"></i> 同步資料
                 </button>
                 <div class="relative flex items-center py-2"><div class="flex-grow border-t border-stone-200"></div><span class="flex-shrink mx-4 text-stone-400 text-[10px] uppercase font-bold tracking-widest">或者加入現有行程</span><div class="flex-grow border-t border-stone-200"></div></div>
                 
                 <div class="flex flex-row items-center gap-2 w-full">
-                    <input type="text" id="join-trip-id" onkeyup="if(event.key==='Enter') window.joinExistingTrip()" placeholder="輸入行程 ID" class="flex-1 min-w-0 border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 uppercase font-mono text-sm shadow-inner bg-stone-50">
+                    <input type="text" id="join-trip-id" onkeyup="if(event.key==='Enter') window.joinExistingTrip()" placeholder="輸入行程 ID" class="flex-1 min-w-0 border p-3 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 uppercase font-mono text-sm shadow-inner bg-stone-50 uniform-input">
                     <button onclick="window.joinExistingTrip()" class="flex-shrink-0 bg-stone-800 text-white px-5 py-3 rounded-lg font-bold hover:bg-stone-900 transition shadow-md">加入</button>
                 </div>
             </div>
@@ -231,7 +247,7 @@
                     <p class="text-[10px] text-emerald-600 mb-2 font-bold uppercase tracking-widest">當前連線行程 ID</p>
                     <div class="flex items-center justify-center gap-3">
                         <code id="current-trip-id-display" class="text-3xl font-mono font-bold text-emerald-800 tracking-wider">------</code>
-                        <button onclick="window.copyTripID()" class="p-2 bg-white text-emerald-600 rounded-lg shadow-sm hover:shadow-md transition active:scale-95"><i data-lucide="copy" class="w-5 h-5"></i></button>
+                        <button onclick="window.copyTripID()" class="p-2 bg-white text-emerald-600 rounded-lg shadow-sm hover:shadow-md transition active:scale-95"><i data-lucide="copy" class="w-5 h-5 text-emerald-600"></i></button>
                     </div>
                 </div>
                 <p class="text-xs text-stone-400 italic font-medium">分享此 ID 給夥伴，即可開始同步記錄。</p>
@@ -276,12 +292,14 @@
             campFee: 0, 
             nightFee: 0, 
             procFee: 0,
-            campDetails: "" 
+            campDetails: "",
+            detailsExpanded: false
         };
         let unsubscribes = [];
 
         // --- 全域函式 ---
         window.toggleSyncModal = () => document.getElementById('sync-modal')?.classList.toggle('hidden');
+        window.toggleDetails = () => { state.detailsExpanded = !state.detailsExpanded; window.renderDashboard(); };
         
         window.switchTab = (tabId) => {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
@@ -329,10 +347,10 @@
                     state.campDetails = d.campDetails || "";
                     syncFormFields(); renderAll(); window.updateLocationUI();
                 }
-            }, (err) => { console.error("Snapshot Meta Error:", err); }));
+            }));
 
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { state.members = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }, (err) => { console.error("Snapshot Members Error:", err); }));
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { state.expenses = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }, (err) => { console.error("Snapshot Expenses Error:", err); }));
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { state.members = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { state.expenses = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
         };
 
         window.startNewTrip = async () => {
@@ -340,20 +358,13 @@
             const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', newId), { 
-                    campName: state.campName, 
-                    campDate: state.campDate,
-                    campFee: state.campFee, 
-                    nightFee: state.nightFee, 
-                    procFee: state.procFee, 
-                    campDetails: state.campDetails 
+                    campName: state.campName, campDate: state.campDate, campFee: state.campFee, nightFee: state.nightFee, procFee: state.procFee, campDetails: state.campDetails 
                 });
                 const membersCol = collection(db, 'artifacts', appId, 'public', 'data', newId + '_m');
                 for (let m of state.members) { await addDoc(membersCol, { name: m.name }); }
                 const expensesCol = collection(db, 'artifacts', appId, 'public', 'data', newId + '_e');
                 for (let e of state.expenses) {
-                    await addDoc(expensesCol, { 
-                        title: e.title, amount: e.amount, payerName: e.payerName, date: e.date, id: e.id || Date.now() 
-                    });
+                    await addDoc(expensesCol, { title: e.title, amount: e.amount, payerName: e.payerName, date: e.date, id: e.id || Date.now() });
                 }
                 startRealtimeSync(newId); window.toggleSyncModal(); window.showMessage("已成功將資料同步至雲端！");
             } catch (e) { console.error("Sync Data Error:", e); window.showMessage("同步失敗"); }
@@ -416,10 +427,15 @@
             const payer = state.members.find(m => m.id == payerId);
             if (!title || isNaN(amount) || amount <= 0 || !payer || !date) return window.showMessage("資訊不全或金額錯誤");
             const data = { title, amount, payerName: payer.name, date, id: Date.now() };
+            
             if (state.isSyncing) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'), data);
             else { state.expenses.push(data); saveLocal(); }
-            document.getElementById('exp-title').value = ""; document.getElementById('exp-amount').value = "";
-            window.showMessage("支出已紀錄");
+            
+            // 優化體驗：清空標題與金額，維持付款人，游標回位
+            document.getElementById('exp-title').value = ""; 
+            document.getElementById('exp-amount').value = "";
+            document.getElementById('exp-title').focus();
+            window.showMessage(`已紀錄: ${title}`);
         };
 
         window.removeExpense = async (id) => {
@@ -428,8 +444,8 @@
         };
 
         window.resetAllLocalData = () => {
-            if (!confirm("確定要清空本地紀錄嗎？雲端行程不會被刪除。")) return;
-            localStorage.clear(); loadLocalData(); window.showMessage("本地資料已清空");
+            if (!confirm("確定要清空本地紀錄嗎？這不會刪除雲端行程。")) return;
+            localStorage.clear(); loadLocalData(); window.showMessage("已清空本地資料");
         };
 
         function saveLocal() { localStorage.setItem('camp_members', JSON.stringify(state.members)); localStorage.setItem('camp_expenses', JSON.stringify(state.expenses)); renderAll(); }
@@ -454,53 +470,84 @@
         }
 
         window.renderAll = () => {
-            renderDashboard();
+            window.renderDashboard();
             const sortedMembers = [...state.members].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant-TW'));
+            
+            // 成員清單
             const mBody = document.getElementById('members-list-body');
             if (mBody) mBody.innerHTML = sortedMembers.map(m => {
                 const paid = state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0);
-                return `<tr class="border-b border-stone-100"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 p-1 hover:bg-rose-50 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button></td></tr>`;
+                return `<tr class="border-b border-stone-100"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 p-1 hover:bg-rose-50 rounded transition"><i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i></button></td></tr>`;
             }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic text-sm">尚未加入成員</td></tr>';
+            
+            // 付款人下拉選單：重建時保留當前選擇
             const pSel = document.getElementById('exp-payer');
-            if (pSel) pSel.innerHTML = state.members.length === 0 ? '<option value="">先新增露友</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            if (pSel) {
+                const currentPayerId = pSel.value;
+                pSel.innerHTML = state.members.length === 0 ? '<option value="">先新增成員</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (currentPayerId && state.members.some(m => m.id == currentPayerId)) {
+                    pSel.value = currentPayerId;
+                }
+            }
+            
+            // 支出清單
             const eList = document.getElementById('expense-list');
-            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl">暫無紀錄</div>' : state.expenses.slice().sort((a,b)=>b.id-a.id).map(e => `
-                <div class="expense-card bg-white p-4 rounded-xl border flex justify-between items-center shadow-sm">
-                    <div><h4 class="font-bold text-stone-700">${e.title}</h4><p class="text-[10px] text-stone-400 font-bold uppercase">${e.date} • ${e.payerName} 付</p></div>
-                    <div class="flex items-center gap-4"><span class="font-bold text-emerald-600 text-lg">$${e.amount.toLocaleString()}</span><button onclick="window.removeExpense('${e.id}')" class="text-stone-300 hover:text-rose-500 transition"><i data-lucide="x-circle" class="w-5 h-5"></i></button></div>
+            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl text-sm">暫無支出</div>' : state.expenses.slice().sort((a,b)=>b.id-a.id).map(e => `
+                <div class="expense-card bg-white p-4 rounded-xl border border-stone-100 flex justify-between items-center shadow-sm">
+                    <div><h4 class="font-bold text-stone-700 text-sm md:text-base">${e.title}</h4><p class="text-[10px] text-stone-400 font-bold uppercase">${e.date} • ${e.payerName} 付</p></div>
+                    <div class="flex items-center gap-4"><span class="font-bold text-emerald-600 text-lg">$${e.amount.toLocaleString()}</span><button onclick="window.removeExpense('${e.id}')" class="text-stone-300 hover:text-rose-500 transition"><i data-lucide="x-circle" class="w-5 h-5 text-stone-300"></i></button></div>
                 </div>`).join('');
             lucide.createIcons();
         };
 
-        function renderDashboard() {
+        window.renderDashboard = () => {
             const expTotal = state.expenses.reduce((sum, e) => sum + e.amount, 0);
             const campTotal = (state.campFee || 0) + (state.nightFee || 0) + (state.procFee || 0);
             const avg = state.members.length > 0 ? Math.round(expTotal / state.members.length) : 0;
             const el = (id) => document.getElementById(id);
-            if (el('dash-camp-name')) el('dash-camp-name').innerText = state.campName || "尚未設定目的地";
+            
+            if (el('dash-camp-name')) {
+                const dateText = state.campDate || "尚未設定日期";
+                const nameText = state.campName || "尚未設定目的地";
+                el('dash-camp-name').innerHTML = `${dateText}<br><br>${nameText}`;
+            }
+
             if (el('dash-total-expense')) el('dash-total-expense').innerText = `$${expTotal.toLocaleString()}`;
             if (el('dash-avg-expense')) el('dash-avg-expense').innerText = `$${avg.toLocaleString()}`;
             if (el('dash-camp-fee-total')) el('dash-camp-fee-total').innerText = `$${campTotal.toLocaleString()}`;
             if (el('dash-member-count')) el('dash-member-count').innerText = `${state.members.length} 人`;
-            if (el('header-camp-name')) el('header-camp-name').innerText = state.campName || "露營小助手";
+            
             const locBtn = el('dash-location-btn-container');
             if (locBtn) state.campName ? locBtn.classList.remove('hidden') : locBtn.classList.add('hidden');
+            
             const detailsCard = el('dash-trip-details-card');
             const detailsContent = el('dash-camp-details-content');
             if (detailsCard && detailsContent) {
                 if (state.campName || state.campDate || state.campFee > 0 || state.nightFee > 0 || state.procFee > 0 || state.campDetails) {
                     detailsCard.classList.remove('hidden');
-                    let html = '';
-                    if (state.campDate) html += `<div class="flex justify-between items-center mb-1"><span>露營日期：</span><b class="text-stone-700">${state.campDate}</b></div>`;
-                    html += `<div class="flex justify-between items-center"><span>營位預估 (每帳)：</span><b class="text-stone-700">$${state.campFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>夜衝預估 (每帳)：</span><b class="text-stone-700">$${state.nightFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>手續費 (總額)：</span><b class="text-stone-700">$${state.procFee.toLocaleString()}</b></div><div class="mt-2 border-t border-stone-50 pt-2 italic text-stone-400 text-xs">備註：${state.campDetails || '無'}</div>`;
-                    detailsContent.innerHTML = html;
+                    let feeHtml = `<div class="flex justify-between items-center mb-1"><span>營位預估 (每帳)：</span><b class="text-stone-700">$${state.campFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>夜衝預估 (每帳)：</span><b class="text-stone-700">$${state.nightFee.toLocaleString()}</b></div><div class="flex justify-between items-center"><span>手續費 (每帳)：</span><b class="text-stone-700">$${state.procFee.toLocaleString()}</b></div>`;
+                    
+                    let detHtml = '';
+                    if (state.campDetails) {
+                        const lineCount = state.campDetails.split('\n').length;
+                        const isLong = lineCount > 3 || state.campDetails.length > 120;
+                        const displayClass = state.detailsExpanded ? 'whitespace-pre-wrap' : 'whitespace-pre-wrap line-clamp-3';
+                        
+                        detHtml = `<div class="mt-2 border-t border-stone-50 pt-2 text-stone-500 text-xs">
+                            <div class="${displayClass}">${state.campDetails}</div>
+                            ${isLong ? `<button onclick="window.toggleDetails()" class="text-emerald-600 font-bold mt-1 hover:underline">${state.detailsExpanded ? '收起' : '... 更多'}</button>` : ''}
+                        </div>`;
+                    }
+                    detailsContent.innerHTML = feeHtml + detHtml;
                 } else detailsCard.classList.add('hidden');
             }
+            
             const dashSettle = el('dash-settlement-list');
             if (dashSettle) {
                 const tx = calculateSettlement();
                 dashSettle.innerHTML = tx.length > 0 ? tx.map(t => `<div class="flex justify-between bg-emerald-50/50 p-2 rounded-lg text-sm border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-400 py-4 text-sm italic">尚無分帳建議</p>';
             }
+            
             const ranking = el('dash-payer-ranking');
             if (ranking) {
                 if (state.members.length > 0) {
@@ -510,10 +557,10 @@
                 } else ranking.innerHTML = '<p class="text-center text-stone-400 text-xs font-medium italic py-2">暫無數據</p>';
             }
             lucide.createIcons();
-        }
+        };
 
         window.updateLocationUI = () => { const ui = document.getElementById('location-active-ui'); if (ui) ui.classList.toggle('hidden', !state.campName); if (document.getElementById('display-camp-name')) document.getElementById('display-camp-name').innerText = state.campName; };
-        window.copyTripID = () => { const el = document.createElement('textarea'); el.value = state.tripId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); window.showMessage("連線 ID 已複製"); };
+        window.copyTripID = () => { const el = document.createElement('textarea'); el.value = state.tripId; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); window.showMessage("連線 ID 已複製！"); };
         window.openGoogleMaps = () => { if (state.campName) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(state.campName)}`, '_blank'); };
 
         const initAuth = async () => {
@@ -523,7 +570,7 @@
                     try { await signInWithCustomToken(auth, initialToken); }
                     catch (tokenErr) { console.warn("Token mismatch, falling back to anonymous."); await signInAnonymously(auth); }
                 } else { await signInAnonymously(auth); }
-            } catch (e) { console.error("Firebase Auth Final Error:", e); window.showMessage("身分驗證失敗，僅能使用單機模式"); }
+            } catch (e) { console.error("Firebase Auth Final Error:", e); window.showMessage("身分驗證失敗，目前使用單機模式"); }
         };
 
         const init = async () => {
