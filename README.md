@@ -1,59 +1,93 @@
 露營小助手 (Camping Assistant) 🏕️
 
-一個專為露友設計的 Web App，整合了營地行程管理、多人即時分帳與導航連動功能。無需下載 App，透過瀏覽器即可輕鬆與夥伴協作。
+一個專為露友設計的輕量級 Web App，整合了營地行程管理、多人即時分帳與地圖導航連動功能。無需下載，透過瀏覽器即可與夥伴即時協作。
 
 ✨ 主要特色
 
-多人即時連線：使用專屬行程 ID，與夥伴共享同一個分帳清單。
+📊 全能總覽儀表板：即時統計總支出、人均費用、營位費，並視覺化顯示各露友的支出貢獻。
 
-費用透明化：紀錄每一筆採買、營位費，自動計算「誰該給誰多少錢」。
+🌐 多人即時同步：整合 Firebase Firestore，產生專屬行程 ID，讓夥伴透過雲端即時參與編輯。
 
-行程總覽： Dashboard 即時顯示總支出與人均費用，還有誰付最多的進度條。
+💰 智能分帳系統：自動計算「誰該給誰多少錢」的最短還款路徑，內建防呆提示與成員人數檢查。
 
-地圖連航：輸入營地名稱，一鍵跳轉 Google Maps 開啟導航。
+⛺ 行程細節紀錄：支援儲存營位費、夜衝費及營地備註，一鍵跳轉 Google Maps 導航。
 
-隱私與彈性：支援「單機模式（純手機儲存）」與「雲端模式（多人同步）」。
+📱 響應式設計：針對手機操作優化，支援鍵盤 Enter 快速輸入，即使在小螢幕也能完美顯示。
 
-🛠️ 技術棧
+🛠️ 版本更新歷史 (Version History)
 
-前端： HTML5, Tailwind CSS, JavaScript (Vanilla JS)
+v1.0.4 (最新版本)
 
-圖示： Lucide Icons
+修正： 處理 auth/custom-token-mismatch 錯誤。當環境憑證不匹配時，自動回退至「匿名登入」，確保連線穩定。
 
-後端資料庫： Firebase Firestore
+優化： 強化身分驗證邏輯，增加錯誤監聽與使用者提示。
 
-身分驗證： Firebase Anonymous Auth
+v1.0.3
 
-🚀 快速開始
+功能： 為所有輸入框加上 Enter 鍵監聽。在支出項目按 Enter 跳轉金額，在其他框按 Enter 直接執行動作。
 
-1. 部署到 GitHub Pages
+修正： 解決多人連線彈窗在手機版（小螢幕）上的跑版問題，優化 ID 輸入框與按鈕的寬度比例。
 
-將專案中的 camping_app.html 重新命名為 index.html。
+v1.0.2
 
-上傳至你的 GitHub Repository。
+功能： 在成員管理頁面新增「清空本地快取資料」按鈕，方便重新開啟新行程。
 
-前往專案 Settings > Pages，選擇 main 分支並儲存。
+優化： 強化分帳邏輯，加入除以零檢查與金額必須大於 0 的防呆機制。
 
-幾分鐘後，你就能透過專屬網址存取網站。
+修正： 確保動態更新清單後，Lucide 圖示能正確重新渲染。
 
-2. 本地執行
+v1.0.1
 
-只需直接在瀏覽器中開啟 camping_app.html 即可運作（單機模式）。
+修正： 解決 GitHub Pages 部署後出現 ReferenceError 的問題（將函式顯式綁定至 window 物件）。
 
-📖 使用教學
+優化： 修正模組化腳本（module scope）導致 HTML onclick 失效的問題。
 
-管理成員：先到「成員」分頁加入所有參與的朋友。
+優化： 預留 Firebase Config 配置區塊並增加 API 填寫狀態偵測。
 
-設定行程：在「行程」分頁輸入營地名稱、費用與細節。
+v1.0.0
 
-紀錄支出：採買後，在「分帳」分頁輸入項目名稱與金額，選擇墊付款項的成員。
+初始發佈： 包含儀表板、成員管理、分帳計算與本機 localStorage 儲存功能。
 
-查看結算：回到「總覽」分頁，查看自動計算出的還款建議。
+🚀 部署教學 (Deployment Guide)
 
-開啟同步：點擊右上角「未啟用同步」，選擇「開啟新行程同步」，將產生的 ID 分享給夥伴，讓大家一起記錄。
+1. 取得 Firebase 配置
+
+前往 Firebase Console 建立新專案。
+
+啟用 Firestore Database（建議使用測試模式）。
+
+啟用 Authentication 中的「匿名 (Anonymous)」登入方法。
+
+在「專案設定」中新增網頁應用程式，複製 firebaseConfig 內容。
+
+2. 更新程式碼
+
+開啟 camping_app.html。
+
+找到 const firebaseConfig = { ... } 區塊（約在檔案中後段）。
+
+貼上您的專案 API Key 與 ID。
+
+3. 上傳至 GitHub
+
+將檔案重新命名為 index.html。
+
+上傳至 GitHub Repository。
+
+前往 Settings > Pages，將來源設為 main 分支後儲存。
+
+在 Firebase 的 Authentication > Settings > Authorized domains 中加入您的 GitHub 網址（例如：username.github.io）。
+
+📖 使用提示
+
+儲存目的地：在「行程」分頁輸入完按 Enter 即可儲存並產生導航連結。
+
+快速連線：點擊右上角燈號即可開啟多人模式，將 ID 分享給朋友後，大家的手機會即時同步。
+
+分帳提醒：若還沒加成員就想分帳，系統會自動跳轉引導您先新增夥伴。
 
 📄 授權協議
 
 本專案採用 MIT License 授權。
 
-由露營愛好者開發，為更好的戶外體驗而生。 🌲🔥
+🌲 由露營愛好者為夥伴們開發。祝您露營愉快！🔥
