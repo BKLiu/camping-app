@@ -1,7 +1,7 @@
 <!-- 
     專案：露營小助手 (Camping Assistant)
-    版本：v1.1.9
-    描述：穩定部署版，優化刪除與同步邏輯、強制 ID 類型轉換、移除(筆畫排序)標籤、維持備註格式與展開邏輯。
+    版本：v1.2.0
+    描述：穩定部署版，徹底修正日期欄位格式不統一問題、維持筆劃排序、優化雲端刪除與同步邏輯。
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -13,13 +13,66 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8faf8; }
-        .tab-active { border-bottom: 3px solid #059669; color: #059669; }
+        
+        /* 基礎樣式重設 */
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #f8faf8; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tab-active { 
+            border-bottom: 3px solid #059669; 
+            color: #059669; 
+        }
+
         .expense-card { transition: transform 0.2s; position: relative; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .uniform-input { width: 100%; border: 1px solid #e5e7eb; padding: 0.75rem; border-radius: 0.5rem; outline: none; transition: all 0.2s; background-color: #ffffff; height: 3rem; }
-        .uniform-input:focus { border-color: #059669; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); }
+        
+        /* 隱藏數字輸入框箭頭 */
+        input::-webkit-outer-spin-button, 
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* 核心：高度與格式統一的輸入框樣式 */
+        .uniform-input { 
+            display: block;
+            width: 100%; 
+            height: 3rem; 
+            padding: 0.5rem 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #1c1917;
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb; 
+            border-radius: 0.5rem; 
+            outline: none; 
+            transition: all 0.2s;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .uniform-input:focus { 
+            border-color: #059669; 
+            box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); 
+        }
+
+        /* 針對日期輸入框在不同平台的細微調整 */
+        input[type="date"].uniform-input {
+            min-height: 3rem;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 針對 select 的微調 */
+        select.uniform-input {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
     </style>
 </head>
 <body class="text-stone-800">
@@ -48,11 +101,13 @@
     </nav>
 
     <main class="max-w-4xl mx-auto p-4 pb-24">
-        <!-- Dashboard -->
+        <!-- Dashboard Tab -->
         <section id="dashboard-tab" class="space-y-4">
             <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl px-6 py-[22px] text-white shadow-lg">
                 <div class="flex justify-between items-start mb-4">
-                    <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期\n\n尚未設定目的地</h2>
+                    <div>
+                        <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期\n\n尚未設定目的地</h2>
+                    </div>
                     <i data-lucide="tent" class="w-10 h-10 opacity-30 text-white"></i>
                 </div>
                 <div id="dash-location-btn-container" class="hidden text-right">
@@ -63,20 +118,20 @@
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100 text-center">
-                    <p class="text-[10px] text-stone-400 font-bold mb-1">分帳支出總額</p>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
+                    <p class="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-wider">分帳支出總額</p>
                     <p id="dash-total-expense" class="text-xl font-bold text-emerald-700">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 font-bold mb-1">每人分擔</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-wider">每人分擔</p>
                     <p id="dash-avg-expense" class="text-xl font-bold text-blue-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 font-bold mb-1">預估費用(每帳)</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-wider">預估費用(每帳)</p>
                     <p id="dash-camp-fee-total" class="text-xl font-bold text-amber-600">$0</p>
                 </div>
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-stone-100">
-                    <p class="text-[10px] text-stone-400 font-bold mb-1">成員人數</p>
+                    <p class="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-wider">成員人數</p>
                     <p id="dash-member-count" class="text-xl font-bold text-stone-700">0 人</p>
                 </div>
             </div>
@@ -100,47 +155,81 @@
             </div>
         </section>
 
-        <!-- Trip Settings -->
+        <!-- Trip Settings Tab -->
         <section id="map-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="map-pin"></i> 營地資訊設定</h3>
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營地名稱</label><input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="營地名稱..." class="uniform-input"></div>
-                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程日期</label><input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-stone-400 uppercase">營地名稱</label>
+                            <input type="text" id="manual-location" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="例如：武陵農場..." class="uniform-input">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-stone-400 uppercase">行程日期</label>
+                            <input type="date" id="camp-date-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input">
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">營位費(每帳)</label><input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
-                        <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">夜衝費(每帳)</label><input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
-                        <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">手續費(每帳)</label><input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" class="uniform-input"></div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-stone-400 uppercase">營位費(每帳)</label>
+                            <input type="number" id="camp-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="block text-xs font-bold text-stone-400 uppercase">夜衝費(每帳)</label>
+                            <input type="number" id="night-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
+                        </div>
+                        <div class="col-span-2 md:col-span-1 space-y-1">
+                            <label class="block text-xs font-bold text-stone-400 uppercase">手續費(每帳)</label>
+                            <input type="number" id="proc-fee-input" onkeyup="if(event.key==='Enter') window.saveTripData()" placeholder="0" class="uniform-input">
+                        </div>
                     </div>
-                    <div><label class="block text-xs font-bold text-stone-400 mb-1 uppercase">行程備註</label><textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea></div>
-                    <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md">儲存行程資料</button>
-                    <div id="location-active-ui" class="hidden text-center mt-2"><button onclick="window.openGoogleMaps()" class="text-emerald-700 font-bold underline flex items-center justify-center gap-1 mx-auto text-sm">在 Google Map 中開啟搜尋</button></div>
+                    <div class="space-y-1">
+                        <label class="block text-xs font-bold text-stone-400 uppercase">行程備註</label>
+                        <textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea>
+                    </div>
+                    <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-[0.98] transition">儲存行程資料</button>
+                    <div id="location-active-ui" class="hidden text-center mt-2">
+                        <button onclick="window.openGoogleMaps()" class="text-emerald-700 font-bold underline flex items-center justify-center gap-1 mx-auto text-sm"><i data-lucide="external-link" class="w-4 h-4"></i> 在 Google Map 中開啟搜尋</button>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Expenses -->
+        <!-- Expenses Tab -->
         <section id="expense-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="plus-circle"></i> 新增支出項目</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">項目</label><input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" class="uniform-input"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">金額</label><input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" class="uniform-input"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">日期</label><input type="date" id="exp-date" class="uniform-input bg-white"></div>
-                    <div><label class="block text-[10px] font-bold text-stone-400 mb-1 uppercase">付款人</label><select id="exp-payer" class="uniform-input bg-white"></select></div>
-                    <div class="md:col-span-2"><button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl mt-2 shadow-sm">新增紀錄</button></div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">支出項目</label>
+                        <input type="text" id="exp-title" onkeyup="if(event.key==='Enter') document.getElementById('exp-amount').focus()" placeholder="例如：買菜" class="uniform-input">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">金額</label>
+                        <input type="number" id="exp-amount" onkeyup="if(event.key==='Enter') window.addExpense()" placeholder="0" class="uniform-input">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">日期</label>
+                        <input type="date" id="exp-date" class="uniform-input">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">付款人</label>
+                        <select id="exp-payer" class="uniform-input"></select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <button onclick="window.addExpense()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl mt-2 shadow-sm active:scale-[0.98] transition">新增紀錄</button>
+                    </div>
                 </div>
             </div>
             <div id="expense-list" class="space-y-3"></div>
         </section>
 
-        <!-- Members -->
+        <!-- Members Tab -->
         <section id="members-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100 flex gap-2">
-                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入名字..." class="flex-1 border p-3 rounded-lg uniform-input">
-                <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-sm">新增</button>
+                <input type="text" id="member-name" onkeyup="if(event.key==='Enter') window.addMember()" placeholder="輸入成員名字..." class="flex-1 border p-3 rounded-lg uniform-input">
+                <button onclick="window.addMember()" class="bg-emerald-600 text-white px-6 rounded-lg font-bold shadow-sm active:scale-95">新增</button>
             </div>
             <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-stone-100">
                 <table class="w-full text-left text-sm">
@@ -148,7 +237,9 @@
                     <tbody id="members-list-body"></tbody>
                 </table>
             </div>
-            <div class="pt-6 border-t border-stone-200"><button onclick="window.resetAllLocalData()" class="text-xs text-rose-400 mx-auto block hover:underline">清空本地快取 (重新開始)</button></div>
+            <div class="pt-6 border-t border-stone-200">
+                <button onclick="window.resetAllLocalData()" class="text-xs text-rose-400 mx-auto block hover:underline">清空本地快取資料 (重新開始)</button>
+            </div>
         </section>
     </main>
 
@@ -158,11 +249,11 @@
             <div class="flex justify-between items-center"><h2 class="text-xl font-bold flex items-center gap-2"><i data-lucide="refresh-cw" class="text-emerald-600"></i> 多人連線同步</h2><button onclick="window.toggleSyncModal()" class="p-1"><i data-lucide="x"></i></button></div>
             <div id="sync-off-ui" class="space-y-4">
                 <p class="text-sm text-stone-500 text-center leading-relaxed">將目前資料同步至雲端，產生的 ID 即可分享給夥伴編輯。</p>
-                <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-md flex items-center justify-center gap-2"><i data-lucide="cloud-upload"></i> 同步資料</button>
+                <button onclick="window.startNewTrip()" class="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"><i data-lucide="cloud-upload"></i> 同步資料</button>
                 <div class="relative flex items-center py-2"><div class="flex-grow border-t border-stone-200"></div><span class="flex-shrink mx-4 text-stone-400 text-[10px] font-bold uppercase tracking-widest">或者加入現有行程</span><div class="flex-grow border-t border-stone-200"></div></div>
                 <div class="flex flex-row items-center gap-2 w-full mt-2">
                     <input type="text" id="join-trip-id" onkeyup="if(event.key==='Enter') window.joinExistingTrip()" placeholder="行程 ID" class="flex-1 uniform-input uppercase font-mono">
-                    <button onclick="window.joinExistingTrip()" class="bg-stone-800 text-white px-5 py-3 rounded-lg font-bold shadow-md">加入</button>
+                    <button onclick="window.joinExistingTrip()" class="bg-stone-800 text-white px-5 py-3 rounded-lg font-bold shadow-md active:scale-95">加入</button>
                 </div>
             </div>
             <div id="sync-on-ui" class="hidden text-center space-y-4">
@@ -170,7 +261,7 @@
                     <p class="text-[10px] text-emerald-600 mb-2 font-bold tracking-widest uppercase">當前連線行程 ID</p>
                     <div class="flex items-center justify-center gap-3">
                         <code id="current-trip-id-display" class="text-3xl font-mono font-bold text-emerald-800 tracking-wider">------</code>
-                        <button onclick="window.copyTripID()" class="p-2 bg-white rounded-lg shadow-sm active:scale-95 transition"><i data-lucide="copy" class="text-emerald-600"></i></button>
+                        <button onclick="window.copyTripID()" class="p-2 bg-white rounded-lg shadow-sm active:scale-90 transition"><i data-lucide="copy" class="text-emerald-600"></i></button>
                     </div>
                 </div>
                 <button onclick="window.stopSync()" class="w-full border border-stone-200 py-3 rounded-xl text-stone-500 text-sm hover:bg-stone-50 transition">停止同步並返回單機模式</button>
@@ -212,12 +303,13 @@
 
         window.toggleSyncModal = () => document.getElementById('sync-modal')?.classList.toggle('hidden');
         window.toggleDetails = () => { state.detailsExpanded = !state.detailsExpanded; window.renderDashboard(); };
+        
         window.switchTab = (tabId) => {
             document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
             document.getElementById(tabId)?.classList.remove('hidden');
             ['dashboard-tab', 'map-tab', 'expense-tab', 'members-tab'].forEach(id => {
                 const btn = document.getElementById(`btn-${id}`);
-                if (btn) btn.className = `flex-1 min-w-[80px] py-3 text-center font-medium ${id === tabId ? 'tab-active' : 'text-stone-500'}`;
+                if (btn) btn.className = `flex-1 min-w-[80px] py-3 text-center font-medium ${id === tabId ? 'tab-active' : 'text-stone-500'} transition-all`;
             });
             lucide.createIcons();
         };
@@ -257,7 +349,6 @@
                 }
             }));
 
-            // 核心映射：優先使用 Firebase 的文件名稱作為 ID，確保刪除能精確對準
             unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => {
                 state.members = snap.docs.map(d => ({ ...d.data(), id: d.id }));
                 renderAll();
@@ -276,7 +367,6 @@
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta', newId), { 
                     campName: state.campName, campDate: state.campDate, campFee: state.campFee, nightFee: state.nightFee, procFee: state.procFee, campDetails: state.campDetails 
                 });
-                // 同步時強制將文件名稱設為資料 ID
                 for (let m of state.members) {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', newId + '_m', String(m.id)), { name: m.name, id: m.id });
                 }
@@ -367,10 +457,8 @@
         window.removeExpense = async (id) => {
             if (state.isSyncing) {
                 try {
-                    // 樂觀更新：先從本地移除提高反應速度
                     state.expenses = state.expenses.filter(e => String(e.id) !== String(id));
                     renderAll();
-                    // 強制使用字串 ID 進行刪除（對準文件名稱）
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', String(id)));
                     window.showMessage("紀錄已刪除");
                 } catch (e) { window.showMessage("刪除失敗"); }
@@ -382,7 +470,7 @@
 
         function saveLocal() { localStorage.setItem('camp_members', JSON.stringify(state.members)); localStorage.setItem('camp_expenses', JSON.stringify(state.expenses)); renderAll(); }
         function loadLocalData() { state.members = JSON.parse(localStorage.getItem('camp_members')) || []; state.expenses = JSON.parse(localStorage.getItem('camp_expenses')) || []; state.campName = localStorage.getItem('camp_name') || ""; state.campDate = localStorage.getItem('camp_date') || ""; state.campFee = parseFloat(localStorage.getItem('camp_fee')) || 0; state.nightFee = parseFloat(localStorage.getItem('night_fee')) || 0; state.procFee = parseFloat(localStorage.getItem('proc_fee')) || 0; state.campDetails = localStorage.getItem('camp_details') || ""; syncFormFields(); renderAll(); }
-        function syncFormFields() { const el = (id) => document.getElementById(id); if (el('manual-location')) el('manual-location').value = state.campName; if (el('camp-date-input')) el('camp-date-input').value = state.campDate; if (el('camp-fee-input')) el('camp-fee-input').value = state.campFee || ""; if (el('night-fee-input')) el('night-fee-input').value = state.nightFee || ""; if (el('proc-fee-input')) el('proc-fee-input').value = state.procFee || ""; if (el('camp-details-input')) el('camp-details-input').value = state.campDetails; if (el('exp-date')) el('exp-date').value = new Date().toISOString().split('T')[0]; }
+        function syncFormFields() { const el = (id) => document.getElementById(id); if (el('manual-location')) el('manual-location').value = state.campName; if (el('camp-date-input')) el('camp-date-input').value = state.campDate; if (el('exp-date')) el('exp-date').value = new Date().toISOString().split('T')[0]; }
 
         function calculateSettlement() {
             if (state.members.length < 2) return [];
