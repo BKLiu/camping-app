@@ -1,7 +1,7 @@
 <!-- 
     專案：露營小助手 (Camping Assistant)
-    版本：v1.1.4
-    描述：穩定部署版，修復刪除按鈕無效問題、優化分帳連續輸入體驗、更名「結算分帳明細」、維持備註格式與展開邏輯。
+    版本：v1.1.5
+    描述：穩定部署版，修復多人連線時刪除功能無效的問題（修正 ID 覆蓋邏輯）、維持筆劃排序、優化操作體驗。
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -115,7 +115,7 @@
 
             <div id="dash-trip-details-card" class="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 hidden text-sm">
                 <h3 class="font-bold text-stone-600 mb-3 flex items-center gap-2"><i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600"></i> 行程詳情</h3>
-                <div id="dash-camp-details-content" class="space-y-2 text-stone-700"></div>
+                <div id="dash-camp-details-content" class="space-y-2 text-stone-700 font-normal"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
@@ -349,8 +349,15 @@
                 }
             }));
 
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { state.members = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
-            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { state.expenses = snap.docs.map(d => ({id: d.id, ...d.data()})); renderAll(); }));
+            // 修復關鍵點：確保文件 ID (d.id) 覆蓋資料內的 id
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_m'), (snap) => { 
+                state.members = snap.docs.map(d => ({ ...d.data(), id: d.id })); 
+                renderAll(); 
+            }));
+            unsubscribes.push(onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', tripId + '_e'), (snap) => { 
+                state.expenses = snap.docs.map(d => ({ ...d.data(), id: d.id })); 
+                renderAll(); 
+            }));
         };
 
         window.startNewTrip = async () => {
@@ -364,7 +371,7 @@
                 for (let m of state.members) { await addDoc(membersCol, { name: m.name }); }
                 const expensesCol = collection(db, 'artifacts', appId, 'public', 'data', newId + '_e');
                 for (let e of state.expenses) {
-                    await addDoc(expensesCol, { title: e.title, amount: e.amount, payerName: e.payerName, date: e.date, id: e.id || Date.now() });
+                    await addDoc(expensesCol, { title: e.title, amount: e.amount, payerName: e.payerName, date: e.date });
                 }
                 startRealtimeSync(newId); window.toggleSyncModal(); window.showMessage("已成功將資料同步至雲端！");
             } catch (e) { console.error("Sync Data Error:", e); window.showMessage("同步失敗"); }
@@ -414,8 +421,13 @@
         window.removeMember = async (id) => {
             const m = state.members.find(x => x.id == id);
             if (state.expenses.some(e => e.payerName == m?.name)) return window.showMessage("此人已有支出紀錄");
-            if (state.isSyncing) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', id));
-            else { state.members = state.members.filter(x => x.id != id); saveLocal(); }
+            if (state.isSyncing) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_m', id));
+                } catch (e) { window.showMessage("刪除失敗"); }
+            } else { 
+                state.members = state.members.filter(x => x.id != id); saveLocal(); 
+            }
         };
 
         window.addExpense = async () => {
@@ -426,29 +438,30 @@
             const payerId = document.getElementById('exp-payer').value;
             const payer = state.members.find(m => m.id == payerId);
             if (!title || isNaN(amount) || amount <= 0 || !payer || !date) return window.showMessage("資訊不全或金額錯誤");
-            const data = { title, amount, payerName: payer.name, date, id: Date.now() };
             
-            if (state.isSyncing) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'), data);
-            else { state.expenses.push(data); saveLocal(); }
+            const data = { title, amount, payerName: payer.name, date };
+            if (state.isSyncing) {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e'), data);
+            } else {
+                state.expenses.push({ ...data, id: Date.now().toString() }); saveLocal();
+            }
             
-            // 優化體驗：清空標題與金額，維持付款人，游標回位
             document.getElementById('exp-title').value = ""; 
             document.getElementById('exp-amount').value = "";
             document.getElementById('exp-title').focus();
             window.showMessage(`已紀錄: ${title}`);
         };
 
-        // 修改刪除邏輯：確保型態比對正確且能即時更新
         window.removeExpense = async (id) => {
             if (state.isSyncing) {
                 try {
+                    // ID 現在是字串格式的文件 ID，刪除將會生效
                     await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', state.tripId + '_e', id));
                     window.showMessage("已刪除雲端紀錄");
                 } catch (e) {
                     window.showMessage("刪除失敗");
                 }
             } else {
-                // 本地刪除：使用不嚴格比對 (id != id) 以相容數字與字串
                 state.expenses = state.expenses.filter(e => e.id != id);
                 saveLocal();
                 window.showMessage("已刪除紀錄");
@@ -485,26 +498,27 @@
             window.renderDashboard();
             const sortedMembers = [...state.members].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant-TW'));
             
-            // 成員清單
             const mBody = document.getElementById('members-list-body');
             if (mBody) mBody.innerHTML = sortedMembers.map(m => {
                 const paid = state.expenses.filter(e => e.payerName == m.name).reduce((sum, e) => sum + e.amount, 0);
                 return `<tr class="border-b border-stone-100"><td class="p-4 font-medium">${m.name}</td><td class="p-4 text-right text-emerald-600 font-bold">$${paid.toLocaleString()}</td><td class="p-4 text-right"><button onclick="window.removeMember('${m.id}')" class="text-rose-400 p-1 hover:bg-rose-50 rounded transition"><i data-lucide="trash-2" class="w-4 h-4 text-rose-400"></i></button></td></tr>`;
-            }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic text-sm">尚未加入成員</td></tr>';
+            }).join('') || '<tr><td colspan="3" class="p-8 text-center text-stone-300 italic text-sm">尚未加入露友</td></tr>';
             
-            // 付款人下拉選單：重建時保留當前選擇
             const pSel = document.getElementById('exp-payer');
             if (pSel) {
                 const currentPayerId = pSel.value;
-                pSel.innerHTML = state.members.length === 0 ? '<option value="">先新增成員</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                pSel.innerHTML = state.members.length === 0 ? '<option value="">請先新增成員</option>' : state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
                 if (currentPayerId && state.members.some(m => m.id == currentPayerId)) {
                     pSel.value = currentPayerId;
                 }
             }
             
-            // 支出清單：優化刪除按鈕感應區域
             const eList = document.getElementById('expense-list');
-            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl text-sm">暫無支出</div>' : state.expenses.slice().sort((a,b)=>b.id-a.id).map(e => `
+            if (eList) eList.innerHTML = state.expenses.length === 0 ? '<div class="p-8 text-center text-stone-300 border border-dashed rounded-xl text-sm">暫無支出</div>' : state.expenses.slice().sort((a,b)=> {
+                const idA = typeof a.id === 'string' ? a.id : a.id.toString();
+                const idB = typeof b.id === 'string' ? b.id : b.id.toString();
+                return idB.localeCompare(idA);
+            }).map(e => `
                 <div class="expense-card bg-white p-4 rounded-xl border border-stone-100 flex justify-between items-center shadow-sm">
                     <div class="flex-1 pr-2">
                         <h4 class="font-bold text-stone-700 text-sm md:text-base">${e.title}</h4>
