@@ -1,7 +1,7 @@
 <!-- 
     專案：露營小助手 (Camping Assistant)
-    版本：v1.2.2
-    描述：穩定部署版，徹底解決日期欄位寬度與高度不一致問題，維持所有既有邏輯（筆劃排序、雲端刪除修復、備註展開）。
+    版本：v1.2.4
+    描述：穩定部署版，修正支出日期預設值（解決手機端顯示空白問題）、維持日期欄位格式統一、找回導航按鈕、強化雲端刪除。
 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -14,7 +14,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
         
-        * { box-sizing: border-box; } /* 確保 Padding 不會撐開寬度 */
+        * { box-sizing: border-box; }
 
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
@@ -30,15 +30,13 @@
         .expense-card { transition: transform 0.2s; position: relative; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 隱藏數字輸入框箭頭 */
         input::-webkit-outer-spin-button, 
         input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* 核心：高度與格式統一的輸入框樣式 */
         .uniform-input { 
             display: block;
             width: 100%; 
-            height: 3rem; /* 強制所有欄位高度相同 */
+            height: 3rem; 
             padding: 0.5rem 0.75rem;
             font-size: 1rem;
             line-height: 1.5;
@@ -57,14 +55,12 @@
             box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); 
         }
 
-        /* 確保日期輸入框在不同平台的表現一致 */
         input[type="date"].uniform-input {
             min-height: 3rem;
             display: flex;
             align-items: center;
         }
 
-        /* 針對 select 的選單箭頭優化 */
         select.uniform-input {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
             background-repeat: no-repeat;
@@ -104,7 +100,9 @@
         <section id="dashboard-tab" class="space-y-4">
             <div class="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl px-6 py-[22px] text-white shadow-lg">
                 <div class="flex justify-between items-start mb-4">
-                    <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期\n\n尚未設定目的地</h2>
+                    <div>
+                        <h2 id="dash-camp-name" class="text-2xl font-bold text-white whitespace-pre-line leading-tight">尚未設定日期\n\n尚未設定目的地</h2>
+                    </div>
                     <i data-lucide="tent" class="w-10 h-10 opacity-30 text-white"></i>
                 </div>
                 <div id="dash-location-btn-container" class="hidden text-right">
@@ -183,7 +181,7 @@
                     </div>
                     <div class="space-y-1">
                         <label class="block text-xs font-bold text-stone-400 uppercase">行程備註</label>
-                        <textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場、營位 A1..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea>
+                        <textarea id="camp-details-input" rows="3" placeholder="例如：預計 14:00 入場..." class="w-full border p-3 rounded-lg outline-none uniform-input !h-auto min-h-[120px]"></textarea>
                     </div>
                     <button onclick="window.saveTripData()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md active:scale-[0.98] transition">儲存行程資料</button>
                     <div id="location-active-ui" class="hidden text-center mt-2">
@@ -197,7 +195,6 @@
         <section id="expense-tab" class="hidden space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
                 <h3 class="font-bold mb-4 text-emerald-700 flex items-center gap-2"><i data-lucide="plus-circle"></i> 新增支出項目</h3>
-                <!-- 修正點：所有欄位套用統一的高度與樣式控管 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="block text-[10px] font-bold text-stone-400 uppercase tracking-wider">支出項目</label>
@@ -220,7 +217,7 @@
                     </div>
                 </div>
             </div>
-            <div id="expense-list" class="space-y-3 text-center"></div>
+            <div id="expense-list" class="space-y-3"></div>
         </section>
 
         <!-- Members Tab -->
@@ -477,9 +474,6 @@
             state.procFee = parseFloat(localStorage.getItem('proc_fee')) || 0; 
             state.campDetails = localStorage.getItem('camp_details') || ""; 
             
-            const expDateInput = document.getElementById('exp-date');
-            if (expDateInput) expDateInput.value = new Date().toISOString().split('T')[0];
-            
             syncFormFields(); renderAll(); 
         }
 
@@ -491,6 +485,17 @@
             if (el('night-fee-input')) el('night-fee-input').value = state.nightFee === 0 ? "0" : (state.nightFee || ""); 
             if (el('proc-fee-input')) el('proc-fee-input').value = state.procFee === 0 ? "0" : (state.procFee || ""); 
             if (el('camp-details-input')) el('camp-details-input').value = state.campDetails; 
+        }
+
+        // 初始化當前本地日期 (修正手機顯示空白問題)
+        function initDefaultDates() {
+            const expDateInput = document.getElementById('exp-date');
+            if (expDateInput && !expDateInput.value) {
+                const now = new Date();
+                const offset = now.getTimezoneOffset() * 60000;
+                const localISODate = new Date(now - offset).toISOString().split('T')[0];
+                expDateInput.value = localISODate;
+            }
         }
 
         function calculateSettlement() {
@@ -545,6 +550,9 @@
             if (el('dash-camp-fee-total')) el('dash-camp-fee-total').innerText = `$${(state.campFee + state.nightFee + state.procFee).toLocaleString()}`;
             if (el('dash-member-count')) el('dash-member-count').innerText = `${state.members.length} 人`;
             
+            const locBtn = el('dash-location-btn-container');
+            if (locBtn) state.campName ? locBtn.classList.remove('hidden') : locBtn.classList.add('hidden');
+
             const detailsCard = el('dash-trip-details-card');
             if (detailsCard) {
                 if (state.campName || state.campDate || state.campFee > 0 || state.nightFee > 0 || state.procFee > 0 || state.campDetails) {
@@ -561,7 +569,7 @@
             const dashSettle = el('dash-settlement-list');
             if (dashSettle) {
                 const tx = calculateSettlement();
-                dashSettle.innerHTML = tx.length ? tx.map(t => `<div class="flex justify-between bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-300 py-4 italic text-sm">尚無分帳建議</p>';
+                dashSettle.innerHTML = tx.length ? tx.map(t => `<div class="flex justify-between bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/30"><span><b>${t.from}</b> → <b>${t.to}</b></span><span class="font-bold text-emerald-700">$${parseInt(t.amount).toLocaleString()}</span></div>`).join('') : '<p class="text-center text-stone-400 py-4 italic text-sm">尚無分帳建議</p>';
             }
             const ranking = el('dash-payer-ranking');
             if (ranking) {
@@ -579,6 +587,7 @@
 
         onAuthStateChanged(auth, (u) => { 
             state.user = u; 
+            initDefaultDates(); // 確保日期帶入
             if (u && state.tripId) startRealtimeSync(state.tripId); 
             else { loadLocalData(); updateSyncUI(false); } 
         });
