@@ -1,93 +1,81 @@
-露營小助手 (Camping Assistant) 🏕️
+# **露營分帳小助手：GitHub 發佈指南**
 
-一個專為露友設計的輕量級 Web App，整合了營地行程管理、多人即時分帳與地圖導航連動功能。無需下載，透過瀏覽器即可與夥伴即時協作。
+這份指南將引導你將 camping\_app.html 發佈到 GitHub 並開啟 **GitHub Pages** 功能，讓你的露營夥伴可以透過網址直接使用。
 
-✨ 主要特色
+## **準備工作**
 
-📊 全能總覽儀表板：即時統計總支出、人均費用、營位費，並視覺化顯示各露友的支出貢獻。
+1. 擁有一個 [GitHub 帳號](https://github.com/)。
+2. 將你的程式碼檔案重新命名為 **index.html**。
+   3. *理由：GitHub Pages 預設會尋找名為 index.html 的檔案作為網站首頁。*
 
-🌐 多人即時同步：整合 Firebase Firestore，產生專屬行程 ID，讓夥伴透過雲端即時參與編輯。
+## **方法一：透過瀏覽器上傳（最簡單，推薦）**
 
-💰 智能分帳系統：自動計算「誰該給誰多少錢」的最短還款路徑，內建防呆提示與成員人數檢查。
+如果你不想安裝任何軟體，這是最快的方式：
 
-⛺ 行程細節紀錄：支援儲存營位費、夜衝費及營地備註，一鍵跳轉 Google Maps 導航。
+### **1. 建立新的存放庫 (Repository)**
 
-📱 響應式設計：針對手機操作優化，支援鍵盤 Enter 快速輸入，即使在小螢幕也能完美顯示。
+* 登入 GitHub 後，點擊右上角的 **「+」**，選擇 **「New repository」**。
+* **Repository name**: 輸入專案名稱（例如：camping-app）。
+* **Public/Private**: 選擇 **Public**（若要使用免費版的 GitHub Pages，必須設為公開）。
+* 點擊底部的 **Create repository**。
 
-🛠️ 版本更新歷史 (Version History)
+### **2. 上傳檔案**
 
-v1.0.4 (最新版本)
+* 在新頁面中，找到「uploading an existing file」的連結。
+* 將你的 **index.html** 檔案拖曳進去。
+* 在下方的 Commit 訊息欄位輸入：「Initial commit」。
+* 點擊 **Commit changes**。
 
-修正： 處理 auth/custom-token-mismatch 錯誤。當環境憑證不匹配時，自動回退至「匿名登入」，確保連線穩定。
+### **3. 開啟網站功能 (GitHub Pages)**
 
-優化： 強化身分驗證邏輯，增加錯誤監聽與使用者提示。
+* 點擊該專案頁面上方的 **Settings**（設定）。
+* 在左側選單找到 **Pages** 標籤。
+* 在 **Build and deployment** 下方的 Branch 選擇 **「main」**，資料夾選擇 **「/(root)」**。
+* 點擊 **Save**。
 
-v1.0.3
+### **4. 取得網址**
 
-功能： 為所有輸入框加上 Enter 鍵監聽。在支出項目按 Enter 跳轉金額，在其他框按 Enter 直接執行動作。
+* 等待約 1-3 分鐘，重新整理 Pages 頁面。
+* 你會看到上方出現一行字：Your site is live at https://\<你的帳號\>.github.io/camping-app/。
+* 點擊該連結，你的 App 就正式上線了！
 
-修正： 解決多人連線彈窗在手機版（小螢幕）上的跑版問題，優化 ID 輸入框與按鈕的寬度比例。
+## **方法二：使用 Git 指令（專業開發者推薦）**
 
-v1.0.2
+如果你電腦有安裝 Git，可以使用以下指令：
 
-功能： 在成員管理頁面新增「清空本地快取資料」按鈕，方便重新開啟新行程。
+\# 1. 進入你的專案資料夾  
+\# 2. 初始化 Git  
+git init
 
-優化： 強化分帳邏輯，加入除以零檢查與金額必須大於 0 的防呆機制。
+\# 3. 加入檔案（確保檔案已命名為 index.html）  
+git add index.html
 
-修正： 確保動態更新清單後，Lucide 圖示能正確重新渲染。
+\# 4. 提交  
+git commit -m "First release"
 
-v1.0.1
+\# 5. 建立主分支  
+git branch -M main
 
-修正： 解決 GitHub Pages 部署後出現 ReferenceError 的問題（將函式顯式綁定至 window 物件）。
+\# 6. 連接到遠端 GitHub 專案（請替換為你的專案網址）  
+git remote add origin [https://github.com/你的帳號/camping-app.git](https://github.com/你的帳號/camping-app.git)
 
-優化： 修正模組化腳本（module scope）導致 HTML onclick 失效的問題。
+\# 7. 推送上傳  
+git push -u origin main
 
-優化： 預留 Firebase Config 配置區塊並增加 API 填寫狀態偵測。
+*上傳後，仍需執行上述「方法一」中的 **步驟 3** 來啟用 Pages 功能。*
 
-v1.0.0
+## **常見問題 (FAQ)**
 
-初始發佈： 包含儀表板、成員管理、分帳計算與本機 localStorage 儲存功能。
+### **Q1: 我修改了程式碼，要怎麼更新網站？**
 
-🚀 部署教學 (Deployment Guide)
+* **網頁版**：進入 GitHub 專案頁面，點擊 index.html 分頁中的「編輯 (鉛筆圖示)」或直接再次上傳新版本覆蓋即可。
+* **網址會變嗎？** 不會，網址會永遠固定。
 
-1. 取得 Firebase 配置
+### **Q2: 為什麼我打開網址是空白的或 404？**
 
-前往 Firebase Console 建立新專案。
+* 檢查檔案名稱是否拼錯，必須是小寫的 index.html。
+* GitHub Pages 部署需要一點時間，請稍等幾分鐘。
 
-啟用 Firestore Database（建議使用測試模式）。
+### **Q3: 資料會不見嗎？**
 
-啟用 Authentication 中的「匿名 (Anonymous)」登入方法。
-
-在「專案設定」中新增網頁應用程式，複製 firebaseConfig 內容。
-
-2. 更新程式碼
-
-開啟 camping_app.html。
-
-找到 const firebaseConfig = { ... } 區塊（約在檔案中後段）。
-
-貼上您的專案 API Key 與 ID。
-
-3. 上傳至 GitHub
-
-將檔案重新命名為 index.html。
-
-上傳至 GitHub Repository。
-
-前往 Settings > Pages，將來源設為 main 分支後儲存。
-
-在 Firebase 的 Authentication > Settings > Authorized domains 中加入您的 GitHub 網址（例如：username.github.io）。
-
-📖 使用提示
-
-儲存目的地：在「行程」分頁輸入完按 Enter 即可儲存並產生導航連結。
-
-快速連線：點擊右上角燈號即可開啟多人模式，將 ID 分享給朋友後，大家的手機會即時同步。
-
-分帳提醒：若還沒加成員就想分帳，系統會自動跳轉引導您先新增夥伴。
-
-📄 授權協議
-
-本專案採用 MIT License 授權。
-
-🌲 由露營愛好者為夥伴們開發。祝您露營愉快！🔥
+* 不會。這個 App 使用的是瀏覽器的 localStorage 技術，資料儲存在使用者的手機/電腦中，上傳到 GitHub 只是提供程式下載。
